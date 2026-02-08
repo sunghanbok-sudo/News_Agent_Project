@@ -326,7 +326,7 @@ class NewsMessenger:
             msg = MIMEMultipart()
             msg['From'] = self.email_user
             msg['To'] = self.email_to
-            msg['Subject'] = f"📢 [News] 진주햄 데일리 리포트 ({datetime.now().strftime('%Y-%m-%d')})"
+            msg['Subject'] = f"☕ [Marketing Brief] 식품업계 모닝 인사이트 ({datetime.now().strftime('%Y-%m-%d')})"
             
             msg.attach(MIMEText(html_content, 'html'))
 
@@ -350,6 +350,8 @@ class NewsAgentSystem:
         self.messenger = NewsMessenger()
         
     def run(self):
+        print("🚀 [System] News Agent Version 2.0 (Marketing Leader Persona) Loaded")
+        
         # 1. 수집 (주제 확장)
         queries = [
             "식품 산업 트렌드", "식음료 마케팅", "푸드테크", "MZ세대 식문화", 
