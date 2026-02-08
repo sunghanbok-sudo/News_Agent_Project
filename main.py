@@ -28,66 +28,111 @@ class NewsCollector:
         print(f"🔎 [수집가] 뉴스 수집 시작: {queries}")
         all_news = []
         
+        # 1. 네이버 뉴스 수집 시도
         for query in queries:
-            url = f"https://search.naver.com/search.naver?where=news&query={query}"
             try:
-                res = requests.get(url, headers=self.headers)
-                soup = BeautifulSoup(res.text, 'html.parser')
-                
-                # 1. 시도: 구 버전 (news_area 클래스)
-                articles = soup.select(".news_area")
-                
-                # 2. 시도: 신 버전 (SDS 디자인, list_news 내부)
-                if not articles:
-                    # list_news 밑의 요소들을 찾음 (class가 bx이거나 div)
-                    # 구조가 복잡하므로 제목/설명을 각각 찾아서 매칭하거나, list_news > div/li 구조를 순회
-                    raw_items = soup.select("ul.list_news > div") or soup.select("ul.list_news > li")
-                    if raw_items:
-                        articles = raw_items
-
-                for art in articles:
-                    # 제목 추출
-                    title_node = art.select_one(".news_tit") # 구버전
-                    if not title_node:
-                        # 신버전: headline1 클래스를 가진 span
-                        title_node = art.select_one("span[class*='headline1']")
-                    
-                    if not title_node:
-                        continue
-                        
-                    title = title_node.text
-                    
-                    # 링크 추출 (제목 노드의 부모 a 태그 혹은 본인)
-                    link = "#"
-                    if title_node.name == 'a':
-                        link = title_node['href']
-                    else:
-                        parent_a = title_node.find_parent('a')
-                        if parent_a:
-                            link = parent_a['href']
-                            
-                    # 설명 추출
-                    desc_node = art.select_one(".news_dsc") # 구버전
-                    if not desc_node:
-                        # 신버전: body 클래스를 가진 span (보통 body-1 또는 body-2)
-                        desc_node = art.select_one("span[class*='body']")
-                    
-                    desc = desc_node.text if desc_node else "내용 없음"
-                    
-                    # 간단한 중복 제거 (URL 기준)
-                    if not any(n['link'] == link for n in all_news):
-                        all_news.append({
-                            "title": title, 
-                            "link": link, 
-                            "desc": desc,
-                            "collected_at": datetime.now().isoformat(),
-                            "query": query
-                        })
+                naver_items = self._collect_naver(query)
+                if naver_items:
+                    all_news.extend(naver_items)
+                else:
+                    # 네이버 실패/차단 시 구글 뉴스(RSS) fallback
+                    print(f"⚠️ [수집가] '{query}' 네이버 검색 결과 없음. 구글 뉴스로 대체합니다.")
+                    google_items = self._collect_google_rss(query)
+                    all_news.extend(google_items)
             except Exception as e:
-                print(f"⚠️ [수집가] 수집 중 오류 발생 ({query}): {e}")
+                print(f"❌ [수집가] '{query}' 수집 중 에러: {e}")
 
-        self._save_raw_data(all_news)
-        return all_news
+        # 중복 제거 (URL 기준)
+        seen_links = set()
+        unique_news = []
+        for n in all_news:
+            if n['link'] not in seen_links:
+                seen_links.add(n['link'])
+                unique_news.append(n)
+
+        self._save_raw_data(unique_news)
+        return unique_news
+
+    def _collect_naver(self, query):
+        """네이버 뉴스 검색 (크롤링)"""
+        items = []
+        url = f"https://search.naver.com/search.naver?where=news&query={query}"
+        try:
+            res = requests.get(url, headers=self.headers, timeout=10)
+            if res.status_code != 200:
+                return []
+            
+            soup = BeautifulSoup(res.text, 'html.parser')
+            
+            # SDS 디자인 (list_news > li (bx))
+            raw_items = soup.select("ul.list_news > li")
+            if not raw_items:
+               raw_items = soup.select(".news_area") # 구버전 fallback
+
+            for art in raw_items:
+                # 제목/링크
+                title_node = art.select_one("a.news_tit")
+                if not title_node:
+                    title_node = art.select_one(".news_tit")
+                
+                if not title_node: continue
+                
+                title = title_node.text.strip()
+                link = title_node['href']
+                
+                # 설명
+                desc_node = art.select_one(".news_dsc")
+                if not desc_node:
+                    desc_node = art.select_one("div.news_dsc")
+                    
+                desc = desc_node.text.strip() if desc_node else ""
+                
+                items.append({
+                    "title": title,
+                    "link": link,
+                    "desc": desc,
+                    "source": "Naver",
+                    "collected_at": datetime.now().isoformat(),
+                    "query": query
+                })
+        except Exception:
+            pass # 개별 실패는 무시하고 빈 리스트 리턴
+        return items
+
+    def _collect_google_rss(self, query):
+        """구글 뉴스 RSS (Fallback용, 클라우드에서 안정적)"""
+        items = []
+        # 구글 뉴스 RSS URL (한국어 설정)
+        url = f"https://news.google.com/rss/search?q={query}&hl=ko&gl=KR&ceid=KR:ko"
+        try:
+            res = requests.get(url, timeout=10)
+            if res.status_code != 200:
+                print(f"⚠️ [수집가] 구글 RSS 요청 실패: {res.status_code}")
+                return []
+                
+            soup = BeautifulSoup(res.text, 'xml') # XML 파싱
+            xml_items = soup.select("item")
+            
+            for item in xml_items:
+                title = item.title.text if item.title else ""
+                link = item.link.text if item.link else ""
+                # RSS는 description에 HTML이 섞여있을 수 있음
+                desc_html = item.description.text if item.description else ""
+                desc_clean = BeautifulSoup(desc_html, "html.parser").text[:200]
+                
+                if title:
+                    items.append({
+                        "title": title,
+                        "link": link,
+                        "desc": desc_clean,
+                        "source": "Google",
+                        "collected_at": datetime.now().isoformat(),
+                        "query": query
+                    })
+        except Exception as e:
+            print(f"⚠️ [수집가] 구글 RSS 처리 중 오류: {e}")
+        
+        return items
 
     def _save_raw_data(self, news_list):
         if not os.path.exists(DATA_DIR):
