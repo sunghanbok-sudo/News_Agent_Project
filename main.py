@@ -110,8 +110,18 @@ class NewsCollector:
                 print(f"⚠️ [수집가] 구글 RSS 요청 실패: {res.status_code}")
                 return []
                 
-            soup = BeautifulSoup(res.text, 'xml') # XML 파싱
-            xml_items = soup.select("item")
+            try:
+                soup = BeautifulSoup(res.text, 'xml') # XML 파싱 시도 (lxml 필요)
+            except Exception:
+                soup = BeautifulSoup(res.text, 'html.parser') # lxml 없으면 내장 파서 사용
+
+                soup = BeautifulSoup(res.text, 'html.parser') # lxml 없으면 내장 파서 사용
+
+            xml_items = soup.find_all("item")
+            if not xml_items:
+                xml_items = soup.select("item") # backup
+            
+            # print(f"DEBUG: Found {len(xml_items)} items for {query}") 
             
             for item in xml_items:
                 title = item.title.text if item.title else ""
@@ -151,11 +161,23 @@ class NewsStrategist:
     [에이전트 2: 전략 분석가]
     - 뉴스 가치 평가 및 점수 산정
     - 인사이트(기회/위기) 도출
+    - 타겟: 50대 식품 마케팅 팀장
     """
     def __init__(self):
-        self.target_keywords = ["진주햄", "육가공", "HMR", "K-Food", "바질 후랑크", "남해마늘햄", "천하장사"]
-        self.trend_keywords = ["비건", "단백질", "캠핑", "가성비", "편의점", "MZ세대"]
-        self.critical_keywords = ["ASF", "아프리카돼지열병", "구제역", "원자재 가격"] # 위기 요인
+        # 1. 핵심 관심사 (Marketing & Biz)
+        self.biz_keywords = ["마케팅", "캠페인", "콜라보", "팝업", "신제품", "매출", "해외 진출", "ESG", "M&A"]
+        
+        # 2. 산업 트렌드 (Industry Trends)
+        self.trend_keywords = [
+            "제로", "비건", "단백질", "헬시플레저", "가치소비", "푸드테크", "밀키트", "RMR", 
+            "고령친화", "친환경", "숏폼", "유튜브"
+        ]
+        
+        # 3. 위기/외부 요인 (Risk & External)
+        self.risk_keywords = ["물가", "인플레이션", "환율", "원자재", "식중독", "이물질", "불매", "ASF"]
+        
+        # 4. 타겟 소비자 (Target Audience)
+        self.target_keywords = ["MZ", "잘파", "1인가구", "시니어", "오피스"]
 
     def analyze(self, news_list):
         print("📊 [전략 분석가] 뉴스 분석 및 점수 산정 중...")
@@ -165,35 +187,53 @@ class NewsStrategist:
             score = 0
             reasons = []
             
-            # 1. 핵심 키워드 매칭
-            for kw in self.target_keywords:
-                if kw in news['title'] or kw in news['desc']:
+            title = news['title']
+            desc = news['desc']
+            content = title + " " + desc
+            
+            # 점수 산정 로직
+            # 1. 트렌드 키워드 (가장 중요, 미래 먹거리) -> +10점
+            for kw in self.trend_keywords:
+                if kw in content:
                     score += 10
-                    reasons.append(f"핵심({kw})")
-            
-            # 2. 트렌드 키워드 매칭
-            for tk in self.trend_keywords:
-                if tk in news['title'] or tk in news['desc']:
+                    reasons.append(f"트렌드({kw})")
+
+            # 2. 비즈니스/마케팅 키워드 (실무 연관) -> +5점
+            for kw in self.biz_keywords:
+                if kw in content:
                     score += 5
-                    reasons.append(f"트렌드({tk})")
-            
-            # 3. 위기 요소 모니터링 (가중치 높음)
-            for ck in self.critical_keywords:
-                if ck in news['title'] or ck in news['desc']:
+                    reasons.append(f"비즈니스({kw})")
+
+            # 3. 위기 요인 (놓치면 안됨) -> +20점 (긴급)
+            for kw in self.risk_keywords:
+                if kw in content:
                     score += 20
-                    reasons.append(f"🚨위기감지({ck})")
+                    reasons.append(f"🚨Risk({kw})")
                     news['is_critical'] = True
 
-            news['score'] = score
-            news['reasons'] = ", ".join(reasons)
+            # 4. 타겟 소비자 언급 -> +5점
+            for kw in self.target_keywords:
+                if kw in content:
+                    score += 5
+                    reasons.append(f"타겟({kw})")
             
-            # 인사이트 초안 생성 (가상) - 실제 LLM 연동 시 여기가 핵심
-            if score >= 15:
-                news['insight'] = "진주햄의 신제품 마케팅과 연계 가능성 높음. 즉시 대응 필요."
-            elif 'is_critical' in news:
-                news['insight'] = "원료 수급 불안정 예상. 구매팀과 재고 파악 필요."
+            # 진주햄/육가공 직접 언급은 기본 점수 부여
+            if "진주햄" in content or "육가공" in content:
+                score += 10
+                reasons.append("관심기업/산업")
+
+            news['score'] = score
+            news['reasons'] = ", ".join(list(set(reasons))) # 중복 제거
+            
+            # 인사이트 생성 (규칙 기반)
+            if 'is_critical' in news:
+                news['insight'] = "위기 요인 감지. 공급망 점검 및 리스크 대응 방안 수립 필요."
+            elif score >= 20:
+                news['insight'] = "업계 주요 트렌드와 전략이 결합된 기사. 신제품 기획 및 마케팅 전략에 벤치마킹 필요."
+            elif score >= 10:
+                news['insight'] = "시장 동향 파악을 위한 참고 자료. 경쟁사 움직임 주시 필요."
             else:
-                news['insight'] = "시장 동향 파악용 참고 자료."
+                news['insight'] = "일반적인 업계 소식."
                 
             analyzed_list.append(news)
             
@@ -205,8 +245,8 @@ class NewsStrategist:
 class NewsEditor:
     """
     [에이전트 3: 편집장]
-    - 리포트 포맷팅 (가독성 최우선)
-    - Markdown 파일 생성
+    - 리포트 포맷팅 (가독성 최우선, 팀장님 보고용)
+    - Top 10 선정
     """
     def create_report(self, analyzed_news):
         print("📝 [편집장] 데일리 인사이트 리포트 작성 중...")
@@ -217,20 +257,21 @@ class NewsEditor:
         today_str = datetime.now().strftime("%Y-%m-%d")
         file_path = os.path.join(OUTPUT_DIR, f"Daily_Insight_Report_{today_str}.md")
         
-        # 상위 5개 + 위기 뉴스 필터링
-        top_news = analyzed_news[:5]
+        # 상위 10개 선정 (점수가 너무 낮은건 제외할 수도 있음)
+        top_news = analyzed_news[:10]
         
-        markdown_content = f"# 📰 진주햄 마케팅 데일리 인사이트 ({today_str})\n\n"
-        markdown_content += "> **요약**: 오늘의 주요 시장 동향과 마케팅 기회를 정리해 드립니다.\n\n"
+        markdown_content = f"# ☕ [Marketing Brief] 식품업계 모닝 인사이트 ({today_str})\n\n"
+        markdown_content += "> **Executive Summary**: 마케팅 팀장님을 위해 엄선한 오늘의 식품 산업 트렌드와 주요 이슈 10선입니다.\n\n"
         
         for i, news in enumerate(top_news):
             icon = "🚨" if news.get('is_critical') else "💡"
-            markdown_content += f"## {i+1}. {icon} {news['title']}\n"
-            markdown_content += f"- **관련 키워드**: {news['reasons']}\n"
-            markdown_content += f"- **핵심 요약**: {news['desc']}\n"
-            markdown_content += f"- **마케팅 인사이트**: {news['insight']}\n"
-            markdown_content += f"- **원문**: [링크 바로가기]({news['link']})\n\n"
-            markdown_content += "---\n\n"
+            
+            # 제목에 링크 걸기
+            markdown_content += f"### {i+1}. {icon} [{news['title']}]({news['link']})\n"
+            markdown_content += f"- **Why This Matters**: {news['insight']}\n"
+            markdown_content += f"- **Key Keywords**: {news['reasons']}\n"
+            markdown_content += f"- **Summary**: {news['desc']}\n\n"
+            markdown_content += "---\n"
             
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(markdown_content)
@@ -309,8 +350,12 @@ class NewsAgentSystem:
         self.messenger = NewsMessenger()
         
     def run(self):
-        # 1. 수집
-        queries = ["육가공 트렌드", "진주햄", "아프리카돼지열병", "편의점 안주"]
+        # 1. 수집 (주제 확장)
+        queries = [
+            "식품 산업 트렌드", "식음료 마케팅", "푸드테크", "MZ세대 식문화", 
+            "편의점 신상", "대체육 시장", "건강기능식품 트렌드", "유통 업계 동향",
+            "진주햄", "육가공 트렌드" # 자사/경쟁사 모니터링은 기본 포함
+        ]
         raw_news = self.collector.collect(queries)
         
         # 2. 분석
