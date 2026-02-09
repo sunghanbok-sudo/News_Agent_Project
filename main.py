@@ -1,9 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import sys
+import email.utils
 
 # Windows 콘솔 인코딩 문제 해결
 sys.stdout.reconfigure(encoding='utf-8')
@@ -134,14 +135,34 @@ class NewsCollector:
                 desc_clean = BeautifulSoup(desc_html, "html.parser").text[:200]
                 
                 if title:
-                    items.append({
-                        "title": title,
-                        "link": link,
-                        "desc": desc_clean,
-                        "source": "Google",
-                        "collected_at": datetime.now().isoformat(),
-                        "query": query
-                    })
+                    # 날짜 필터링 (Python 레벨에서 2차 검증)
+                    pub_date_str = item.pubDate.text if item.pubDate else ""
+                    is_recent = True
+                    
+                    if pub_date_str:
+                        try:
+                            # RSS pubDate (RFC 822) 파싱
+                            pub_dt = email.utils.parsedate_to_datetime(pub_date_str)
+                            # offset-aware와 unaware 비교를 위해 둘 다 aware로 맞추거나 변환
+                            now = datetime.now(pub_dt.tzinfo) 
+                            
+                            diff = now - pub_dt
+                            if diff > timedelta(days=7):
+                                print(f"🚫 [수집가] 7일 지난 기사 제외: {title} ({diff.days}일 전)")
+                                is_recent = False
+                        except Exception as e:
+                            print(f"⚠️ [수집가] 날짜 파싱 실패 ({pub_date_str}): {e}")
+
+                    if is_recent:
+                        items.append({
+                            "title": title,
+                            "link": link,
+                            "desc": desc_clean,
+                            "source": "Google",
+                            "collected_at": datetime.now().isoformat(),
+                            "query": query,
+                            "pub_date": pub_date_str 
+                        })
         except Exception as e:
             print(f"⚠️ [수집가] 구글 RSS 처리 중 오류: {e}")
         
