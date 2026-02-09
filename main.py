@@ -56,7 +56,9 @@ class NewsCollector:
     def _collect_naver(self, query):
         """네이버 뉴스 검색 (크롤링)"""
         items = []
-        url = f"https://search.naver.com/search.naver?where=news&query={query}"
+        # pd=1: 1주, pd=4: 1일, pd=2: 1개월
+        # 여기서는 1주 이내 기사만 검색
+        url = f"https://search.naver.com/search.naver?where=news&query={query}&pd=1"
         try:
             res = requests.get(url, headers=self.headers, timeout=10)
             if res.status_code != 200:
@@ -103,7 +105,8 @@ class NewsCollector:
         """구글 뉴스 RSS (Fallback용, 클라우드에서 안정적)"""
         items = []
         # 구글 뉴스 RSS URL (한국어 설정)
-        url = f"https://news.google.com/rss/search?q={query}&hl=ko&gl=KR&ceid=KR:ko"
+        # 구글 뉴스 RSS URL (한국어 설정, 1주 이내: when:7d)
+        url = f"https://news.google.com/rss/search?q={query} when:7d&hl=ko&gl=KR&ceid=KR:ko"
         try:
             res = requests.get(url, timeout=10)
             if res.status_code != 200:
