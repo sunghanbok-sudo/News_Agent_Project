@@ -320,7 +320,10 @@ class NewsMessenger:
         self.email_password = os.environ.get("GMAIL_APP_PASSWORD")
         # 수신자는 발신자와 동일하게 설정하거나 별도 환경변수로 분리 가능
         raw_to = os.environ.get("GMAIL_TO", self.email_user)
-        self.email_to = [email.strip() for email in raw_to.split(',')]
+        if raw_to:
+            self.email_to = [email.strip() for email in raw_to.split(',')]
+        else:
+            self.email_to = []
 
     def send_report(self, report_path):
         print("📮 [메신저] 리포트 이메일 발송 준비...")
