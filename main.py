@@ -5,6 +5,11 @@ import json
 import os
 import sys
 import email.utils
+from dotenv import load_dotenv
+
+# .env 파일 로드 (환경변수 설정)
+load_dotenv()
+
 
 # Windows 콘솔 인코딩 문제 해결
 sys.stdout.reconfigure(encoding='utf-8')
@@ -318,12 +323,8 @@ class NewsMessenger:
         self.smtp_port = 587
         self.email_user = os.environ.get("GMAIL_USER")
         self.email_password = os.environ.get("GMAIL_APP_PASSWORD")
-        # 수신자는 발신자와 동일하게 설정하거나 별도 환경변수로 분리 가능
-        raw_to = os.environ.get("GMAIL_TO", self.email_user)
-        if raw_to:
-            self.email_to = [email.strip() for email in raw_to.split(',')]
-        else:
-            self.email_to = []
+        # 수신자는 발신자와 동일하게 설정 (GMAIL_TO가 없으면 GMAIL_USER로 발송)
+        self.email_to = os.environ.get("GMAIL_TO", self.email_user)
 
     def send_report(self, report_path):
         print("📮 [메신저] 리포트 이메일 발송 준비...")
@@ -337,13 +338,10 @@ class NewsMessenger:
             with open(report_path, "r", encoding="utf-8") as f:
                 report_content = f.read()
 
-            # HTML 변환 (간단히)
-            # 마크다운을 HTML로 변환하는 라이브러리(markdown)를 쓰면 좋지만, 
-            # 여기서는 텍스트로 보조하거나 간단한 치환만 수행
             html_content = f"""
             <html>
             <body>
-                <h2>📰 진주햄 데일리 인사이트</h2>
+                <h2>☕ 식품업계 모닝 인사이트</h2>
                 <pre style="font-family: Malgun Gothic, sans-serif; white-space: pre-wrap;">{report_content}</pre>
                 <hr>
                 <p>본 메일은 News Agent에 의해 자동 발송되었습니다.</p>
@@ -358,7 +356,6 @@ class NewsMessenger:
             
             msg.attach(MIMEText(html_content, 'html'))
 
-            # SMTP 발송
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.email_user, self.email_password)
