@@ -124,7 +124,6 @@ class NewsCollector:
             except Exception:
                 soup = BeautifulSoup(res.text, 'html.parser') # lxml 없으면 내장 파서 사용
 
-                soup = BeautifulSoup(res.text, 'html.parser') # lxml 없으면 내장 파서 사용
 
             xml_items = soup.find_all("item")
             if not xml_items:
