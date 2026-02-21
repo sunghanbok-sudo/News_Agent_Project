@@ -198,6 +198,7 @@ class NewsStrategist:
         self.trend_keywords = keywords.get("trend_keywords", [])
         self.risk_keywords = keywords.get("risk_keywords", [])
         self.target_keywords = keywords.get("target_keywords", [])
+        self.competitor_keywords = keywords.get("competitor_keywords", [])
 
     def _load_keywords(self):
         """keywords.json 파일에서 분석용 키워드를 로드합니다."""
@@ -214,7 +215,8 @@ class NewsStrategist:
             "biz_keywords": ["마케팅", "캠페인", "콜라보", "신제품", "매출"],
             "trend_keywords": ["제로", "비건", "푸드테크", "친환경"],
             "risk_keywords": ["물가", "인플레이션", "불매"],
-            "target_keywords": ["MZ", "1인가구", "시니어"]
+            "target_keywords": ["MZ", "1인가구", "시니어"],
+            "competitor_keywords": ["CJ제일제당", "롯데웰푸드", "하림"]
         }
 
     def analyze(self, news_list):
@@ -249,11 +251,15 @@ class NewsStrategist:
                     reasons.append(f"🚨Risk({kw})")
                     news['is_critical'] = True
 
-            # 4. 타겟 소비자 언급 -> +5점
-            for kw in self.target_keywords:
-                if kw in content:
-                    score += 5
-                    reasons.append(f"타겟({kw})")
+            # 4. 타겟/판매채널 (Target & Channel)
+            target_matches = [k for k in self.target_keywords if k in content]
+            score += len(target_matches) * 10
+            reasons.extend([f"타겟({k})" for k in target_matches])
+            
+            # 5. 경쟁사 (Competitors) - 전략적 중요도 높음
+            competitor_matches = [k for k in self.competitor_keywords if k in content]
+            score += len(competitor_matches) * 15 # 경쟁사 소식은 더 높은 가중치
+            reasons.extend([f"경쟁사({k})" for k in competitor_matches])
             
             # 진주햄/육가공 직접 언급은 기본 점수 부여
             if "진주햄" in content or "육가공" in content:
