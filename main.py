@@ -294,7 +294,7 @@ class NewsEditor:
         for i, news in enumerate(top_news):
             icon = "🚨" if news.get('is_critical') else "💡"
             
-            # 제목에 링크 걸기
+            # 마크다운 리포트용 (기존 유지)
             markdown_content += f"### {i+1}. {icon} [{news['title']}]({news['link']})\n"
             markdown_content += f"- **Why This Matters**: {news['insight']}\n"
             markdown_content += f"- **Key Keywords**: {news['reasons']}\n"
@@ -305,7 +305,7 @@ class NewsEditor:
             f.write(markdown_content)
             
         print(f"✅ [편집장] 리포트 발행 완료: {file_path}")
-        return file_path
+        return file_path, top_news
 
 import smtplib
 from email.mime.text import MIMEText
@@ -325,7 +325,7 @@ class NewsMessenger:
         # 수신자는 발신자와 동일하게 설정 (GMAIL_TO가 없으면 GMAIL_USER로 발송)
         self.email_to = os.environ.get("GMAIL_TO", self.email_user)
 
-    def send_report(self, report_path):
+    def send_report(self, report_path, report_data):
         print("📮 [메신저] 리포트 이메일 발송 준비...")
         
         if not self.email_user or not self.email_password:
@@ -333,17 +333,42 @@ class NewsMessenger:
             return
 
         try:
-            # 리포트 내용 읽기
-            with open(report_path, "r", encoding="utf-8") as f:
-                report_content = f.read()
+            # analyzed_news 데이터를 사용하여 직접 HTML 생성
+            # (기존 .md 파일 읽기 방식은 가독성이 떨어짐)
+            
+            news_items_html = ""
+            for i, news in enumerate(report_data):
+                icon = "🚨" if news.get('is_critical') else "💡"
+                item_html = f"""
+                <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                    <h3 style="margin-bottom: 10px;">
+                        {i+1}. {icon} <a href="{news['link']}" style="color: #1a73e8; text-decoration: none;">{news['title']}</a>
+                    </h3>
+                    <p style="margin: 5px 0;"><strong>🎯 Why This Matters:</strong> {news['insight']}</p>
+                    <p style="margin: 5px 0; color: #666;"><strong>🏷️ Key Keywords:</strong> {news['reasons']}</p>
+                    <p style="margin: 5px 0; line-height: 1.5;">{news['desc']}</p>
+                </div>
+                """
+                news_items_html += item_html
 
             html_content = f"""
             <html>
-            <body>
-                <h2>☕ 식품업계 모닝 인사이트</h2>
-                <pre style="font-family: Malgun Gothic, sans-serif; white-space: pre-wrap;">{report_content}</pre>
-                <hr>
-                <p>본 메일은 News Agent에 의해 자동 발송되었습니다.</p>
+            <body style="font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333;">
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h1 style="margin: 0; color: #d32f2f; font-size: 24px;">☕ 식품업계 모닝 인사이트</h1>
+                    <p style="margin: 10px 0 0 0; color: #666;">📅 {datetime.now().strftime('%Y-%m-%d')} | 마케팅 팀장님을 위한 데일리 브리프</p>
+                </div>
+                
+                <div style="background-color: #fff3e0; padding: 15px; border-left: 5px solid #ff9800; margin-bottom: 30px;">
+                    <strong>📢 Executive Summary:</strong> 마케팅 팀장님을 위해 엄선한 오늘의 식품 산업 트렌드와 주요 이슈 10선입니다.
+                </div>
+
+                {news_items_html}
+
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; font-size: 12px; color: #999;">
+                    <p>본 메일은 News Agent에 의해 자동 발송되었습니다.</p>
+                    <p>© 2026 Sunghun Bok. All rights reserved.</p>
+                </div>
             </body>
             </html>
             """
@@ -387,11 +412,11 @@ class NewsAgentSystem:
         # 2. 분석
         analyzed_news = self.strategist.analyze(raw_news)
         
-        # 3. 보도
-        report_path = self.editor.create_report(analyzed_news)
+        # 3. 보도 (HTML 데이터를 위해 top_news도 함께 반환받음)
+        report_path, top_news = self.editor.create_report(analyzed_news)
         
-        # 4. 전송 (로컬 테스트 시 환경변수 없으면 스킵됨)
-        self.messenger.send_report(report_path)
+        # 4. 전송 (데이터를 함께 전달하여 HTML 이메일 생성)
+        self.messenger.send_report(report_path, top_news)
         
         return report_path
 

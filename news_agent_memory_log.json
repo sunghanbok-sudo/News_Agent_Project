@@ -1,0 +1,17 @@
+{
+    "meta": {
+        "project": "News_Agent",
+        "owner": "복성한 부장",
+        "agent": "보보 (BoBo)",
+        "created_at": "2026-02-21T14:55:00+09:00"
+    },
+    "design_guidelines": [],
+    "preference_tags": {},
+    "sessions": [
+        {
+            "date": "2026-02-21T15:40:38+09:00",
+            "action": "뉴스 에이전트 이메일 가독성 개선",
+            "details": "뉴스 제목에 하이퍼링크 적용 및 HTML 이메일 템플릿 도입. <pre> 태그 기반 마크다운 전송 방식 폐기."
+        }
+    ]
+}
