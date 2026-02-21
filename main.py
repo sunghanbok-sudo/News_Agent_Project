@@ -322,8 +322,28 @@ class NewsMessenger:
         self.smtp_port = 587
         self.email_user = os.environ.get("GMAIL_USER")
         self.email_password = os.environ.get("GMAIL_APP_PASSWORD")
-        # 수신자는 발신자와 동일하게 설정 (GMAIL_TO가 없으면 GMAIL_USER로 발송)
-        self.email_to = os.environ.get("GMAIL_TO", self.email_user)
+        
+        # 수신자 목록 로드
+        self.recipients = self._load_recipients()
+
+    def _load_recipients(self):
+        """recipients.json 파일에서 수신자 목록을 로드합니다."""
+        recipients_path = os.path.join(BASE_DIR, "recipients.json")
+        default_recipient = os.environ.get("GMAIL_TO", self.email_user)
+        
+        if os.path.exists(recipients_path):
+            try:
+                with open(recipients_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list) and len(data) > 0:
+                        print(f"👥 [메신저] 수신자 명단 로드 완료: {len(data)}명")
+                        return data
+            except Exception as e:
+                print(f"⚠️ [메신저] 수신자 명단 로딩 중 오류 발생: {e}")
+        
+        # Fallback: 환경변수 또는 발신자 자신
+        print(f"ℹ️ [메신저] 기본 수신자(환경변수)를 사용합니다: {default_recipient}")
+        return [default_recipient]
 
     def send_report(self, report_path, report_data):
         print("📮 [메신저] 리포트 이메일 발송 준비...")
@@ -334,8 +354,6 @@ class NewsMessenger:
 
         try:
             # analyzed_news 데이터를 사용하여 직접 HTML 생성
-            # (기존 .md 파일 읽기 방식은 가독성이 떨어짐)
-            
             news_items_html = ""
             for i, news in enumerate(report_data):
                 icon = "🚨" if news.get('is_critical') else "💡"
@@ -373,22 +391,25 @@ class NewsMessenger:
             </html>
             """
 
-            msg = MIMEMultipart()
-            msg['From'] = self.email_user
-            msg['To'] = self.email_to
-            msg['Subject'] = f"☕ [Marketing Brief] 식품업계 모닝 인사이트 ({datetime.now().strftime('%Y-%m-%d')})"
-            
-            msg.attach(MIMEText(html_content, 'html'))
-
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.email_user, self.email_password)
-                server.send_message(msg)
-            
-            print(f"✅ [메신저] 이메일 발송 완료: {self.email_to}")
+                
+                for recipient in self.recipients:
+                    try:
+                        msg = MIMEMultipart()
+                        msg['From'] = self.email_user
+                        msg['To'] = recipient
+                        msg['Subject'] = f"☕ [Marketing Brief] 식품업계 모닝 인사이트 ({datetime.now().strftime('%Y-%m-%d')})"
+                        msg.attach(MIMEText(html_content, 'html'))
+                        
+                        server.send_message(msg)
+                        print(f"✅ [메신저] 이메일 발송 완료: {recipient}")
+                    except Exception as e:
+                        print(f"❌ [메신저] {recipient} 발송 실패: {e}")
             
         except Exception as e:
-            print(f"❌ [메신저] 이메일 발송 실패: {e}")
+            print(f"❌ [메신저] 이메일 시스템 오류: {e}")
 
 # --- 메인 실행부 ---
 class NewsAgentSystem:
