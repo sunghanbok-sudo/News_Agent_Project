@@ -192,20 +192,30 @@ class NewsStrategist:
     - 타겟: 50대 식품 마케팅 팀장
     """
     def __init__(self):
-        # 1. 핵심 관심사 (Marketing & Biz)
-        self.biz_keywords = ["마케팅", "캠페인", "콜라보", "팝업", "신제품", "매출", "해외 진출", "ESG", "M&A"]
+        # 키워드 로드
+        keywords = self._load_keywords()
+        self.biz_keywords = keywords.get("biz_keywords", [])
+        self.trend_keywords = keywords.get("trend_keywords", [])
+        self.risk_keywords = keywords.get("risk_keywords", [])
+        self.target_keywords = keywords.get("target_keywords", [])
+
+    def _load_keywords(self):
+        """keywords.json 파일에서 분석용 키워드를 로드합니다."""
+        keywords_path = os.path.join(BASE_DIR, "keywords.json")
+        if os.path.exists(keywords_path):
+            try:
+                with open(keywords_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"⚠️ [전략 분석가] 키워드 로딩 중 오류 발생: {e}")
         
-        # 2. 산업 트렌드 (Industry Trends)
-        self.trend_keywords = [
-            "제로", "비건", "단백질", "헬시플레저", "가치소비", "푸드테크", "밀키트", "RMR", 
-            "고령친화", "친환경", "숏폼", "유튜브"
-        ]
-        
-        # 3. 위기/외부 요인 (Risk & External)
-        self.risk_keywords = ["물가", "인플레이션", "환율", "원자재", "식중독", "이물질", "불매", "ASF"]
-        
-        # 4. 타겟 소비자 (Target Audience)
-        self.target_keywords = ["MZ", "잘파", "1인가구", "시니어", "오피스"]
+        # 기본값 (파일이 없을 경우)
+        return {
+            "biz_keywords": ["마케팅", "캠페인", "콜라보", "신제품", "매출"],
+            "trend_keywords": ["제로", "비건", "푸드테크", "친환경"],
+            "risk_keywords": ["물가", "인플레이션", "불매"],
+            "target_keywords": ["MZ", "1인가구", "시니어"]
+        }
 
     def analyze(self, news_list):
         print("📊 [전략 분석가] 뉴스 분석 및 점수 산정 중...")
@@ -422,12 +432,21 @@ class NewsAgentSystem:
     def run(self):
         print("🚀 [System] News Agent Version 2.0 (Marketing Leader Persona) Loaded")
         
-        # 1. 수집 (주제 확장)
-        queries = [
-            "식품 산업 트렌드", "식음료 마케팅", "푸드테크", "MZ세대 식문화", 
-            "편의점 신상", "대체육 시장", "건강기능식품 트렌드", "유통 업계 동향",
-            "진주햄", "육가공 트렌드" # 자사/경쟁사 모니터링은 기본 포함
-        ]
+        # 1. 수집 (keywords.json에서 쿼리 로드)
+        keywords_path = os.path.join(BASE_DIR, "keywords.json")
+        queries = []
+        if os.path.exists(keywords_path):
+            try:
+                with open(keywords_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    queries = data.get("search_queries", [])
+            except Exception as e:
+                print(f"⚠️ [시스템] 검색 쿼리 로딩 중 오류 발생: {e}")
+        
+        if not queries:
+            print("ℹ️ [시스템] 기본 검색 쿼리를 사용합니다.")
+            queries = ["식품 산업 트렌드", "식음료 마케팅", "푸드테크", "진주햄"]
+            
         raw_news = self.collector.collect(queries)
         
         # 2. 분석
