@@ -1,0 +1,38 @@
+name: Daily News Agent V2 (Marketing)
+
+on:
+  schedule:
+    # 매일 한국 시간 오전 8시 (UTC 23:00)
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'v2/**'
+
+jobs:
+  run-news-agent-v2:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        cd v2
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run News Agent V2
+      env:
+        GMAIL_USER: ${{ secrets.GMAIL_USER }}
+        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      run: |
+        cd v2
+        python main.py

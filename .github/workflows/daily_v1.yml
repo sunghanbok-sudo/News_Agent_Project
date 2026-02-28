@@ -1,15 +1,17 @@
-name: Daily News Agent
+name: Daily News Agent V1
 
 on:
   schedule:
-    # 매일 한국 시간 오전 8시 (UTC 23:00)
-    - cron: '0 23 * * *'
-  workflow_dispatch: # 수동 실행 가능
+    # 매일 한국 시간 오전 7시 30분 (UTC 22:30) - v2보다 조금 일찍
+    - cron: '30 22 * * *'
+  workflow_dispatch:
   push:
     branches: [ "main" ]
+    paths:
+      - 'v1/**'
 
 jobs:
-  run-news-agent:
+  run-news-agent-v1:
     runs-on: ubuntu-latest
     
     steps:
@@ -23,14 +25,14 @@ jobs:
 
     - name: Install dependencies
       run: |
+        cd v1
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Run News Agent
+    - name: Run News Agent V1
       env:
         GMAIL_USER: ${{ secrets.GMAIL_USER }}
         GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        # 필요한 경우 수신자 별도 설정
-        # GMAIL_TO: ${{ secrets.GMAIL_TO }} 
       run: |
+        cd v1
         python main.py
