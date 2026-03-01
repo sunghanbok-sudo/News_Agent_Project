@@ -36,3 +36,23 @@ jobs:
       run: |
         cd v1
         python main.py
+
+    - name: Deploy report to GitHub Pages (docs/)
+      run: |
+        mkdir -p docs
+        if [ -f v1/outputs/latest.html ]; then
+          cp v1/outputs/latest.html docs/index.html
+          echo "✅ HTML 리포트를 docs/index.html에 복사 완료."
+        else
+          echo "⚠️ latest.html 없음 — 건너뜁니다."
+          exit 0
+        fi
+        git config user.name "BoBo News Agent"
+        git config user.email "news_agent@ai.local"
+        git add docs/index.html
+        if git diff --staged --quiet; then
+          echo "📌 변경사항 없음. 커밋 생략."
+        else
+          git commit -m "📰 뉴스 리포트 자동 업데이트 $(date +'%Y-%m-%d')"
+          git push
+        fi

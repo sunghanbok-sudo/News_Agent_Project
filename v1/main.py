@@ -427,6 +427,17 @@ class NewsMessenger:
         except Exception as e:
             print(f"❌ [메신저] 이메일 시스템 오류: {e}")
 
+        # GitHub Pages 배포용 HTML 파일 저장 (이메일 성공 여부 무관하게 항상 저장)
+        try:
+            html_out_dir = os.path.join(BASE_DIR, "outputs")
+            os.makedirs(html_out_dir, exist_ok=True)
+            html_file_path = os.path.join(html_out_dir, "latest.html")
+            with open(html_file_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            print(f"💾 [메신저] HTML 리포트 저장 완료 → {html_file_path}")
+        except Exception as e:
+            print(f"⚠️ [메신저] HTML 파일 저장 중 오류: {e}")
+
 # --- 메인 실행부 ---
 class NewsAgentSystem:
     def __init__(self):
