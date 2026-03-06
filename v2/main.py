@@ -585,12 +585,10 @@ class NewsMessenger:
                     except:
                         date_str = ""
 
-                    # 기사 요약 (desc)
+                    # 기사 주요 내용 요약 (desc, 2~3줄)
                     desc_text = news.get('desc', '')
-                    # 너무 길면 100자 내외로 자름
-                    if len(desc_text) > 110:
-                        desc_text = desc_text[:108].rstrip() + "…"
-                    desc_html = f'<p style="margin: 4px 0 0 0; font-size: 12px; color: #666; line-height: 1.5; font-style: italic;">{desc_text}</p>' if desc_text else ""
+                    if len(desc_text) > 230:
+                        desc_text = desc_text[:228].rstrip() + "…"
 
                     date_html = f'<span style="color:#999;font-size:10px;margin-left:6px;">({date_str})</span>' if date_str else ""
 
@@ -603,19 +601,7 @@ class NewsMessenger:
                                     <div>
                                         {badge}<a href="{news['link']}" style="color: #111; text-decoration: none; font-size: 14px; font-weight: 700; line-height: 1.4; font-family: 'Georgia', 'Times New Roman', serif;">{news['title']}</a>{date_html}
                                     </div>
-                                    {desc_html}
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 7px;">
-                                        <tr>
-                                            <td style="vertical-align: top; padding-right: 12px; border-right: 1px solid #EEE; width: 48%;">
-                                                <span style="font-size: 9px; font-weight: 900; color: {color}; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px;">▶ 인사이트</span>
-                                                <span style="font-size: 12px; color: #333; line-height: 1.5;">{news['insight']}</span>
-                                            </td>
-                                            <td style="vertical-align: top; padding-left: 12px; width: 48%;">
-                                                <span style="font-size: 9px; font-weight: 900; color: #888; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px;">◆ 키워드</span>
-                                                <span style="font-size: 11px; color: #555; line-height: 1.5;">{news['reasons']}</span>
-                                            </td>
-                                        </tr>
-                                    </table>
+                                    <p style="margin: 6px 0 0 0; font-size: 12.5px; color: #444; line-height: 1.65;">{desc_text}</p>
                                 </td>
                             </tr>
                         </table>
