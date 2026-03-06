@@ -454,18 +454,30 @@ class NewsEditor:
         markdown_content = f"# 📊 식품 관련 뉴스 클리핑\n\n"
         markdown_content += f"> **{today_str}** | 진주햄 가족을 위한 금주의 뉴스 요약\n\n"
         
-        # 카테고리별 그룹화
-        categorized_news = {}
+        # 카테고리별 그룹화 (고정 순서 적용)
+        CATEGORY_ORDER = [
+            "국제 이슈",
+            "유통/시장 시황",
+            "물가 및 원재료",
+            "트렌드 및 신기술/신제품",
+            "국내 식품 핫뉴스",
+            "미분류"
+        ]
+        
+        categorized_news = {cat: [] for cat in CATEGORY_ORDER}
         for news in top_news:
             cat = news.get('category', '미분류')
             if cat not in categorized_news:
                 categorized_news[cat] = []
             categorized_news[cat].append(news)
             
-        for category, items in categorized_news.items():
+        for category in CATEGORY_ORDER:
+            items = categorized_news.get(category, [])
+            if not items:
+                continue
             markdown_content += f"## ◼ {category}\n\n"
             for news in items:
-                icon = "🔻" if news.get('is_critical') else "🔹"
+                icon = "🔹"
                 markdown_content += f"### {icon} [{news['title']}]({news['link']})\n"
                 markdown_content += f"- **Why This Matters**: {news['insight']}\n"
                 markdown_content += f"- **Key Keywords**: {news['reasons']}\n\n"
@@ -522,8 +534,17 @@ class NewsMessenger:
             print("⚠️ [메신저] 이메일 설정(GMAIL_USER, GMAIL_APP_PASSWORD)이 없습니다. 발송을 건너뜁니다.")
             return
         try:
-            # 카테고리별 그룹화
-            categorized_news = {}
+            # 카테고리별 그룹화 (고정 순서 적용)
+            CATEGORY_ORDER = [
+                "국제 이슈",
+                "유통/시장 시황",
+                "물가 및 원재료",
+                "트렌드 및 신기술/신제품",
+                "국내 식품 핫뉴스",
+                "미분류"
+            ]
+
+            categorized_news = {cat: [] for cat in CATEGORY_ORDER}
             for news in report_data:
                 cat = news.get('category', '미분류')
                 if cat not in categorized_news:
@@ -551,7 +572,11 @@ class NewsMessenger:
             # 각 기사 행 생성 (신문 스타일)
             news_items_html = ""
             article_no = 0
-            for category, items in categorized_news.items():
+            for category in CATEGORY_ORDER:
+                items = categorized_news.get(category, [])
+                if not items:
+                    continue
+
                 color = CATEGORY_COLORS.get(category, "#3A3A3A")
                 label = CATEGORY_ICONS.get(category, "ETC")
                 # 카테고리 섹션 헤더 (신문 구분선 스타일)
@@ -572,7 +597,6 @@ class NewsMessenger:
                 """
                 for news in items:
                     article_no += 1
-                    badge = f'<span style="background:#B22222;color:#fff;font-size:9px;padding:1px 5px;font-weight:900;letter-spacing:0.5px;margin-right:5px;vertical-align:middle;">URGENT</span>' if news.get('is_critical') else ""
 
                     # 날짜 처리
                     pub_date = news.get('pub_date', '')
@@ -608,7 +632,7 @@ class NewsMessenger:
                                 <td style="vertical-align: top; width: 22px; padding-top: 1px; padding-right: 8px; color: {color}; font-size: 11px; font-weight: 900; font-family: 'Georgia', serif;">{article_no}</td>
                                 <td style="vertical-align: top;">
                                     <div>
-                                        {badge}<a href="{news['link']}" style="color: #111; text-decoration: none; font-size: 14px; font-weight: 700; line-height: 1.4; font-family: 'Georgia', 'Times New Roman', serif;">{news['title']}</a>{date_html}
+                                        <a href="{news['link']}" style="color: #111; text-decoration: none; font-size: 14px; font-weight: 700; line-height: 1.4; font-family: 'Georgia', 'Times New Roman', serif;">{news['title']}</a>{date_html}
                                     </div>
                                     <p style="margin: 6px 0 0 0; font-size: 12.5px; color: #444; line-height: 1.65;">{desc_text}</p>
                                 </td>
