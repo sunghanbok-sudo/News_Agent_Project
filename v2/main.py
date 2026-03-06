@@ -7,15 +7,9 @@ import os
 import sys
 import email.utils
 import difflib
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
-
-import os
-import sys
-import email.utils
-import difflib
-import google.generativeai as genai
-from dotenv import load_dotenv
-
 
 # --- 설정 및 상수 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -384,11 +378,14 @@ class NewsStrategist:
 """
         
         try:
-            genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+            client = genai.Client(api_key=self.api_key)
             prompt_input = f"{system_prompt}\n\n뉴스 데이터:\n{json.dumps(prompt_news_data, ensure_ascii=False)}"
             
-            response = model.generate_content(prompt_input)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt_input,
+                config=types.GenerateContentConfig(response_mime_type='application/json')
+            )
             content = response.text
             
             # 파싱 보정
