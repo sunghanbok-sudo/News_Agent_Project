@@ -320,16 +320,17 @@ class NewsStrategist:
         }
 
     def analyze(self, news_list):
-        print("📊 [전략 분석가] 뉴스 분석 및 Top 10 선정 중 (OpenAI)...")
+        print("📊 [전략 분석가] 뉴스 분석 및 Top 15 선정 중 (OpenAI 카테고리별 할당)...")
         
         if not self.api_key or not news_list:
             print("⚠️ [전략 분석가] API 키가 없거나 뉴스 목록이 비어 기존 Rule-based 로직(또는 빈 리스트)으로 폴백합니다.")
-            fallback_list = news_list[:10]
+            fallback_list = news_list[:15]
             for news in fallback_list:
                 news['score'] = 50
                 news['reasons'] = "OpenAI 연결 실패(Fallback)"
-                news['insight'] = "현재 분석 엔진에 접근할 수 없어 단순 상위 10개 기사를 추출했습니다."
+                news['insight'] = "현재 분석 엔진에 접근할 수 없어 단순 상위 15개 기사를 추출했습니다."
                 news['is_critical'] = False
+                news['category'] = "미분류"
             return fallback_list
             
         # LLM에게 전달할 뉴스 데이터 축약 (전체 텍스트 대신 제목/설명만 제공하여 토큰 절약)
@@ -347,38 +348,40 @@ class NewsStrategist:
 주 타겟 독자는 50대 식품 제조사(특히 육가공/HMR 주력) 마케팅 팀장입니다.
 
 다음은 오늘 수집된 뉴스 기사 목록({len(news_list)}건)입니다.
-이 중에서 마케팅 팀장님께서 반드시 알아야 할 **가장 중요하고 인사이트가 넘치는 기사 Top 10**을 엄선해 주세요.
+이 중에서 마케팅 팀장님께서 반드시 알아야 할 **가장 중요하고 인사이트가 넘치는 기사를 총 15개** 엄선해 주세요.
 
-## 선정 기준 (중요도 순)
-1. 🚨 **위기 요인 (Crisis/Risk)**: 원자재, 물가, 식중독, 리콜 등 즉각 대응이 필요한 이슈
-2. 💡 **메가 트렌드 (Trend)**: 푸드테크, K-푸드, 헬시플레저, MZ/잘파세대 식문화 등 미래 먹거리
-3. 🎯 **경쟁사 동향 (Competitors)**: 주요 경쟁사의 신제품, 마케팅 전략, 실적 발표
-4. 💼 **비즈니스 기회 (Opportunity)**: 편의점 신상, 팝업스토어, 이종간 콜라보 등 차용 가능한 아이디어
+## 필수 선정 카테고리 및 목표 할당량 (총 15개)
+다음 5개 카테고리별 목표 개수에 맞게 기사를 배분하여 선정하세요.
+단, 특정 카테고리에 해당하는 기사가 부족할 경우, 부족한 개수만큼 기사가 풍부한 다른 카테고리(예: 트렌드, 핫뉴스)에서 기사를 추가로 선정하여 **반드시 총 15개를 채워야 합니다**.
 
-## 주요 관심 키워드 (참고용)
-- 트렌드: {', '.join(self.trend_keywords)}
-- 비즈니스: {', '.join(self.biz_keywords)}
-- 경쟁사: {', '.join(self.competitor_keywords)}
-- 리스크: {', '.join(self.risk_keywords)}
+1. **국제 이슈 (목표 2개)**: 국내 식품업계에 영향을 미치는 글로벌 K-푸드 수출, 해외 진출 동향, 국제 규제 등
+2. **유통/시장 시황 (목표 6개)**: 할인점, 편의점, 개인 슈퍼, 온라인 커머스, B2B 시장 등 유통 채널 및 시장 상황 동향
+3. **물가 및 원재료 (목표 2개)**: 인플레이션, 원자재 가격 변동, 애그플레이션, 식재료 수급 관련 이슈 (위기 요인 포함)
+4. **트렌드 및 신기술/신제품 (목표 3개)**: 푸드테크, 헬시플레저, 비건, 주요 경쟁사의 혁신적인 신제품 및 신기술
+5. **국내 식품 핫뉴스 (목표 2개)**: 그 외 국내 식품업계 전반의 주요 정책, 팝업스토어, 영업 실적, 콜라보레이션 등 핫이슈
 
 ## 응답 포맷 (반드시 JSON 포맷으로만 응답할 것)
 ```json
-[
-  {{
-    "original_id": 0,
-    "score": 95,
-    "reasons": "K-푸드 수출, 푸드테크 적용",
-    "insight": "경쟁사의 해외 진출 모델 벤치마킹 및 자사 신관심도 제고 방안 모색 필요",
-    "is_critical": false
-  }},
-  ... (Top 10개)
-]
+{{
+  "articles": [
+    {{
+      "original_id": 0,
+      "category": "유통/시장 시황",
+      "score": 95,
+      "reasons": "편의점 신상 간식 트렌드 확산",
+      "insight": "편의점 채널에 맞춘 소용량/프리미엄 HMR 제품군 개발 및 벤치마킹 필요",
+      "is_critical": false
+    }},
+    ... (총 15개)
+  ]
+}}
 ```
 - `original_id`: 원본 뉴스 목록에 부여된 id 숫자
+- `category`: 위 5개 카테고리 명칭 중 하나를 정확히 기재
 - `score`: 중요도 점수 (1~100)
-- `reasons`: 선정한 핵심 키워드나 이유 (짧은 구문 2~3개)
+- `reasons`: 선정한 핵심 주제나 이유 (핵심 키워드 2~3개 중심)
 - `insight`: 마케팅 팀장 관점에서 이 기사가 왜 중요한지('Why This Matters')에 대한 1~2문장의 전략적 코멘트
-- `is_critical`: 즉각적인 대응이나 각별한 주의가 필요한 치명적 위기/리스크 기사인 경우 true, 아니면 false
+- `is_critical`: 대형 식중독, 리콜, 치명적 원자재 급등 등 즉시 보고/대응이 필요한 경우 예외적으로 true, 보통 false
 """
         
         try:
@@ -401,21 +404,22 @@ class NewsStrategist:
             # 파싱 보정
             try:
                 result_json = json.loads(content)
-                # 만약 최상위 객체가 dict이고 그 안에 리스트가 있다면 추출
-                if isinstance(result_json, dict):
-                    # dict의 value 중 list인 것을 찾음
+                if "articles" in result_json:
+                    result_json = result_json["articles"]
+                elif isinstance(result_json, dict):
+                    # fallback list extraction
                     for val in result_json.values():
                         if isinstance(val, list):
                             result_json = val
                             break
             except Exception as parse_e:
                 print(f"⚠️ JSON 파싱 에러: {parse_e}\nContent: {content}")
-                return news_list[:10]
+                return news_list[:15]
 
-            top_10_results = result_json[:10]
+            top_results = result_json[:15]
             
             final_news_list = []
-            for item in top_10_results:
+            for item in top_results:
                 orig_id = item.get("original_id")
                 if orig_id is not None and 0 <= orig_id < len(news_list):
                     news = news_list[orig_id]
@@ -423,6 +427,7 @@ class NewsStrategist:
                     news['reasons'] = item.get("reasons", "")
                     news['insight'] = item.get("insight", "")
                     news['is_critical'] = item.get("is_critical", False)
+                    news['category'] = item.get("category", "미분류")
                     final_news_list.append(news)
                     
             print(f"✅ [전략 분석가] OpenAI 분석 완료: {len(final_news_list)}건 선정.")
@@ -430,13 +435,14 @@ class NewsStrategist:
 
         except Exception as e:
             print(f"❌ [전략 분석가] OpenAI API 호출 실패: {e}")
-            # 폴백: 점수가 없으므로 단순히 앞의 10개만 리턴하고 기본 정보 입력
-            for news in news_list[:10]:
+            # 폴백: 점수가 없으므로 단순히 앞의 15개만 리턴하고 기본 정보 입력
+            for news in news_list[:15]:
                 news['score'] = 50
                 news['reasons'] = "추출 실패 폴백"
                 news['insight'] = "LLM API 오류로 인한 자동 추출"
                 news['is_critical'] = False
-            return news_list[:10]
+                news['category'] = "미분류"
+            return news_list[:15]
 
 
 
@@ -455,19 +461,27 @@ class NewsEditor:
         today_str = datetime.now().strftime("%Y-%m-%d")
         file_path = os.path.join(OUTPUT_DIR, f"Daily_Insight_Report_{today_str}.md")
         
-        # 상위 10개 선정 (점수가 너무 낮은건 제외할 수도 있음)
-        top_news = analyzed_news[:10]
+        # 상위 15개 선정 (점수가 너무 낮은건 제외할 수도 있음)
+        top_news = analyzed_news[:15]
         
         markdown_content = f"# ☕ [Marketing Brief] 식품업계 모닝 인사이트 ({today_str})\n\n"
-        markdown_content += "> **Executive Summary**: 엄선한 최근 식품 산업 트렌드와 주요 이슈 10선입니다.\n\n"
+        markdown_content += "> **Executive Summary**: 엄선한 최근 식품 산업 트렌드와 주요 이슈 15선입니다.\n\n"
         
-        for i, news in enumerate(top_news):
-            icon = "🚨" if news.get('is_critical') else "💡"
+        # 카테고리별 그룹화
+        categorized_news = {}
+        for news in top_news:
+            cat = news.get('category', '미분류')
+            if cat not in categorized_news:
+                categorized_news[cat] = []
+            categorized_news[cat].append(news)
             
-            # 마크다운 리포트용 (기존 유지)
-            markdown_content += f"### {i+1}. {icon} [{news['title']}]({news['link']})\n"
-            markdown_content += f"- **Why This Matters**: {news['insight']}\n"
-            markdown_content += f"- **Key Keywords**: {news['reasons']}\n\n"
+        for category, items in categorized_news.items():
+            markdown_content += f"## 📌 {category}\n\n"
+            for news in items:
+                icon = "🚨" if news.get('is_critical') else "💡"
+                markdown_content += f"### {icon} [{news['title']}]({news['link']})\n"
+                markdown_content += f"- **Why This Matters**: {news['insight']}\n"
+                markdown_content += f"- **Key Keywords**: {news['reasons']}\n\n"
             markdown_content += "---\n"
             
         with open(file_path, "w", encoding="utf-8") as f:
@@ -522,37 +536,51 @@ class NewsMessenger:
             return
 
         try:
-            # analyzed_news 데이터를 사용하여 직접 HTML 생성
+            # 카테고리별 그룹화
+            categorized_news = {}
+            for news in report_data:
+                cat = news.get('category', '미분류')
+                if cat not in categorized_news:
+                    categorized_news[cat] = []
+                categorized_news[cat].append(news)
+                
+            # HTML 생성
             news_items_html = ""
-            for i, news in enumerate(report_data):
-                icon = "🚨" if news.get('is_critical') else "💡"
-                item_html = f"""
-                <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-                    <h3 style="margin-bottom: 10px;">
-                        {i+1}. {icon} <a href="{news['link']}" style="color: #1a73e8; text-decoration: none;">{news['title']}</a>
-                    </h3>
-                    <p style="margin: 5px 0;"><strong>🎯 Why This Matters:</strong> {news['insight']}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>🏷️ Key Keywords:</strong> {news['reasons']}</p>
+            for category, items in categorized_news.items():
+                news_items_html += f"""
+                <div style="margin-top: 30px; padding: 10px; background-color: #f1f8e9; border-radius: 5px;">
+                    <h2 style="margin: 0; color: #2e7d32; font-size: 20px;">📌 {category}</h2>
                 </div>
                 """
-                news_items_html += item_html
+                for news in items:
+                    icon = "🚨" if news.get('is_critical') else "💡"
+                    item_html = f"""
+                    <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                        <h3 style="margin-bottom: 10px; font-size: 16px;">
+                            {icon} <a href="{news['link']}" style="color: #1a73e8; text-decoration: none;">{news['title']}</a>
+                        </h3>
+                        <p style="margin: 5px 0; font-size: 14px;"><strong>🎯 Why This Matters:</strong> {news['insight']}</p>
+                        <p style="margin: 5px 0; color: #666; font-size: 13px;"><strong>🏷️ Key Keywords:</strong> {news['reasons']}</p>
+                    </div>
+                    """
+                    news_items_html += item_html
 
             html_content = f"""
             <html>
             <body style="font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333;">
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
                     <h1 style="margin: 0; color: #d32f2f; font-size: 24px;">☕ 식품업계 모닝 인사이트</h1>
-                    <p style="margin: 10px 0 0 0; color: #666;">📅 {datetime.now().strftime('%Y-%m-%d')} | 진주햄 가족을 위한 위클리 뉴스 브리프</p>
+                    <p style="margin: 10px 0 0 0; color: #666;">📅 {datetime.now().strftime('%Y-%m-%d')} | 진주햄 가족을 위한 일간 뉴스 브리프</p>
                 </div>
                 
-                <div style="background-color: #fff3e0; padding: 15px; border-left: 5px solid #ff9800; margin-bottom: 30px;">
-                    <strong>📢 Executive Summary:</strong> 엄선한 최근 식품 산업 트렌드와 주요 이슈 10선입니다.
+                <div style="background-color: #fff3e0; padding: 15px; border-left: 5px solid #ff9800; margin-bottom: 20px;">
+                    <strong>📢 Executive Summary:</strong> 카테고리별로 엄선한 핵심 산업 트렌드 및 시황 {len(report_data)}선입니다.
                 </div>
 
                 {news_items_html}
 
-                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; font-size: 12px; color: #999;">
-                    <p>본 메일은 News Agent에 의해 자동 발송되었습니다.</p>
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; font-size: 12px; color: #999; text-align: center;">
+                    <p>본 메일은 인공지능 전략 매니저에 의해 수집 및 분석 발송되었습니다.</p>
                     <p>© 2026 Sunghun Bok. All rights reserved.</p>
                 </div>
             </body>
@@ -568,7 +596,7 @@ class NewsMessenger:
                         msg = MIMEMultipart()
                         msg['From'] = self.email_user
                         msg['To'] = recipient
-                        msg['Subject'] = f"☕ [Marketing Brief] 식품업계 모닝 인사이트 ({datetime.now().strftime('%Y-%m-%d')})"
+                        msg['Subject'] = f"☕ [Insight] 식품업계 모닝 브리핑 ({datetime.now().strftime('%Y-%m-%d')})"
                         msg.attach(MIMEText(html_content, 'html'))
                         
                         server.send_message(msg)
