@@ -466,9 +466,10 @@ class NewsEditor:
         
         categorized_news = {cat: [] for cat in CATEGORY_ORDER}
         for news in top_news:
-            cat = news.get('category', '미분류')
-            if cat not in categorized_news:
-                categorized_news[cat] = []
+            cat = news.get('category', '미분류').strip()
+            # 정확히 일치하지 않으면 '미분류'로 강제 편입 (기사 누락 방지)
+            if cat not in CATEGORY_ORDER:
+                cat = '미분류'
             categorized_news[cat].append(news)
             
         for category in CATEGORY_ORDER:
@@ -546,9 +547,9 @@ class NewsMessenger:
 
             categorized_news = {cat: [] for cat in CATEGORY_ORDER}
             for news in report_data:
-                cat = news.get('category', '미분류')
-                if cat not in categorized_news:
-                    categorized_news[cat] = []
+                cat = news.get('category', '미분류').strip()
+                if cat not in CATEGORY_ORDER:
+                    cat = '미분류'
                 categorized_news[cat].append(news)
 
             # 카테고리별 색상 맵
