@@ -589,6 +589,17 @@ class NewsMessenger:
                     desc_text = news.get('desc', '')
                     if len(desc_text) > 230:
                         desc_text = desc_text[:228].rstrip() + "…"
+                    # 제목과 중복되는 경우 제거 (RSS desc가 title과 동일한 경우 빈번함)
+                    title_clean = re.sub(r'[^\w]', '', news['title'].lower())
+                    desc_clean_check = re.sub(r'[^\w]', '', desc_text.lower())
+                    if title_clean and desc_clean_check and (
+                        desc_clean_check.startswith(title_clean[:30]) or
+                        (len(title_clean) > 0 and len(desc_clean_check) > 0 and
+                         len(set(title_clean) & set(desc_clean_check)) / max(len(set(title_clean)), 1) > 0.85 and
+                         len(desc_clean_check) <= len(title_clean) * 1.3)
+                    ):
+                        desc_text = ""
+
 
                     date_html = f'<span style="color:#999;font-size:10px;margin-left:6px;">({date_str})</span>' if date_str else ""
 
