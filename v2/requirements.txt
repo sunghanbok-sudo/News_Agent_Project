@@ -2,4 +2,5 @@ requests
 beautifulsoup4
 lxml
 python-dotenv
-openai  
+google-genai
+pydantic
