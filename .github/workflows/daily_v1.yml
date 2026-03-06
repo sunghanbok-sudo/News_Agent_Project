@@ -1,7 +1,7 @@
 name: Daily News Agent V1
 
 on:
-  # workflow_dispatch:
+  workflow_dispatch:
   # schedule:
   #   - cron: '30 22 * * *'
   # push:
