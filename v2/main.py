@@ -49,31 +49,35 @@ class NewsCollector:
             except Exception as e:
                 print(f"❌ [수집가] '{query}' 수집 중 에러: {e}")
 
-        # 중복 제거 (URL 및 형태소/단어 교집합 유사도 기준)
+        # 중복 제거 (URL 및 N-gram 기반 글자 교집합 유사도 기준)
         seen_links = set()
         unique_news = []
         
-        # 전처리 함수: 특수기호 제거 및 소문자화, 띄어쓰기 기준 단어 셋 반환
+        # 전처리 함수: 특수기호 제거 및 소문자화, 공백 제거 후 2글자 단위(Bi-gram) 셋 반환
         import re
-        def get_word_set(text):
-            # 언론사명, 괄호 등 공통 쓸모없는 패턴 제거 (간단하게 특수문자 전반 제거)
+        def get_ngram_set(text, n=2):
+            # 언론사명, 괄호 등 공통 쓸모없는 패턴 제거
             clean_text = re.sub(r'\[.*?\]|\(.*?\)|\<.*?\>', '', text)
-            clean_text = re.sub(r'[^\w\s]', ' ', clean_text).lower()
-            # 1글자 단어는 무의미할 가능성이 높으므로 2글자 이상만 추출 (한국어 특성 고려)
-            words = [w for w in clean_text.split() if len(w) >= 2]
-            return set(words)
+            # 모든 특수기호 및 공백까지 완전히 제거 (글자만 남김)
+            clean_text = re.sub(r'[^\w]', '', clean_text).lower()
+            
+            # n-gram 추출 (예: '롯데웰푸드' -> '롯데', '데웰', '웰푸', '푸드')
+            ngrams = set()
+            for i in range(len(clean_text) - n + 1):
+                ngrams.add(clean_text[i:i+n])
+            return ngrams
             
         for n in all_news:
             if n['link'] in seen_links:
                 continue
                 
-            n_words = get_word_set(n['title'])
+            n_ngrams = get_ngram_set(n['title'])
             
-            # 의미적 중복(단어 Jaccard 유사도) 검사
+            # 의미적 중복(N-gram Jaccard 유사도) 검사
             is_semantic_duplicate = False
             
-            # 단어가 거의 없으면(길이가 너무 짧은 경우 등) 원본 그대로 difflib 보완
-            if len(n_words) < 3:
+            # 제목이 너무 짧아(예: 3글자 미만) N-gram이 안나오는 경우 원본 그대로 difflib 보완
+            if len(n_ngrams) < 2:
                 for existing_news in unique_news:
                     similarity = difflib.SequenceMatcher(None, n['title'], existing_news['title']).ratio()
                     if similarity >= 0.70:
@@ -82,21 +86,21 @@ class NewsCollector:
                         break
             else:
                 for existing_news in unique_news:
-                    ex_words = get_word_set(existing_news['title'])
-                    if not ex_words:
+                    ex_ngrams = get_ngram_set(existing_news['title'])
+                    if not ex_ngrams:
                         continue
                     
-                    # Jaccard Similarity 계산: (A 교집합 B) / (A 합집합 B) 가 아니라,
-                    # 짧은 쪽 제목 길이 기준 포함률 (Containment) 검사를 수행합니다.
-                    # 언론사가 수식어를 잔뜩 붙이는 경우 Jaccard는 낮게 나오지만 Containment는 높습니다.
-                    intersection = n_words.intersection(ex_words)
-                    min_len = min(len(n_words), len(ex_words))
+                    # N-gram 기반 Jaccard 유사도 중 Containment 비율 계산
+                    # 짧은 쪽 제목 기준으로 몇 %의 글자 조합이 일치하는지 확인
+                    intersection = n_ngrams.intersection(ex_ngrams)
+                    min_len = min(len(n_ngrams), len(ex_ngrams))
                     
                     overlap_ratio = len(intersection) / min_len if min_len > 0 else 0
                     
-                    # 공통 단어가 일정 비율 (예: 60%) 이상 겹치면 중복
-                    if overlap_ratio >= 0.60:
-                        print(f"🚫 [수집가] 의미적 중복 기사 제외 (단어 포괄도 {overlap_ratio:.2f}):\n  - 원본: {existing_news['title']}\n  - 중복: {n['title']}\n  - 겹친단어: {intersection}")
+                    # 2-gram 글자 조합이 45% (0.45) 이상 일치하면 무조건 동일 보도자료로 간주!
+                    # 조사가 다르거나 띄어쓰기가 달라도 글자 조합은 대부분 교집합에 들어갑니다.
+                    if overlap_ratio >= 0.45:
+                        print(f"🚫 [수집가] 의미적 중복 기사 제외 (N-gram 포괄도 {overlap_ratio:.2f}):\n  - 원본: {existing_news['title']}\n  - 중복: {n['title']}")
                         is_semantic_duplicate = True
                         break
             
