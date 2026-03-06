@@ -8,17 +8,25 @@ import email.utils
 import difflib
 from dotenv import load_dotenv
 
-# .env 파일 로드 (환경변수 설정)
-load_dotenv()
+import os
+import sys
+import email.utils
+import difflib
+import openai
+from dotenv import load_dotenv
 
-
-# Windows 콘솔 인코딩 문제 해결
-sys.stdout.reconfigure(encoding='utf-8')
 
 # --- 설정 및 상수 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data", "raw_news")
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs", "reports")
+
+# .env 파일 로드 (환경변수 설정)
+env_path = os.path.join(BASE_DIR, ".env")
+load_dotenv(dotenv_path=env_path)
+
+# Windows 콘솔 인코딩 문제 해결
+sys.stdout.reconfigure(encoding='utf-8')
 
 # --- 에이전트 클래스 정의 ---
 
@@ -239,12 +247,19 @@ class NewsCollector:
 class NewsStrategist:
     """
     [에이전트 2: 전략 분석가]
-    - 뉴스 가치 평가 및 점수 산정
+    - 뉴스 가치 평가 및 점수 산정 (OpenAI LLM 활용)
     - 인사이트(기회/위기) 도출
     - 타겟: 50대 식품 마케팅 팀장
     """
     def __init__(self):
-        # 키워드 로드
+        # OpenAI API Key 확인
+        self.api_key = os.environ.get("OPENAI_API_KEY")
+        if not self.api_key:
+            print("⚠️ [전략 분석가] OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해 주세요.")
+        else:
+            openai.api_key = self.api_key
+
+        # 키워드 (LLM 프롬프트에 컨텍스트로 제공할 용도)
         keywords = self._load_keywords()
         self.biz_keywords = keywords.get("biz_keywords", [])
         self.trend_keywords = keywords.get("trend_keywords", [])
@@ -262,7 +277,6 @@ class NewsStrategist:
             except Exception as e:
                 print(f"⚠️ [전략 분석가] 키워드 로딩 중 오류 발생: {e}")
         
-        # 기본값 (파일이 없을 경우)
         return {
             "biz_keywords": ["마케팅", "캠페인", "콜라보", "신제품", "매출"],
             "trend_keywords": ["제로", "비건", "푸드테크", "친환경"],
@@ -272,70 +286,124 @@ class NewsStrategist:
         }
 
     def analyze(self, news_list):
-        print("📊 [전략 분석가] 뉴스 분석 및 점수 산정 중...")
-        analyzed_list = []
+        print("📊 [전략 분석가] 뉴스 분석 및 Top 10 선정 중 (OpenAI)...")
         
-        for news in news_list:
-            score = 0
-            reasons = []
+        if not self.api_key or not news_list:
+            print("⚠️ [전략 분석가] API 키가 없거나 뉴스 목록이 비어 기존 Rule-based 로직(또는 빈 리스트)으로 폴백합니다.")
+            fallback_list = news_list[:10]
+            for news in fallback_list:
+                news['score'] = 50
+                news['reasons'] = "OpenAI 연결 실패(Fallback)"
+                news['insight'] = "현재 분석 엔진에 접근할 수 없어 단순 상위 10개 기사를 추출했습니다."
+                news['is_critical'] = False
+            return fallback_list
             
-            title = news['title']
-            desc = news['desc']
-            content = title + " " + desc
-            
-            # 점수 산정 로직
-            # 1. 트렌드 키워드 (가장 중요, 미래 먹거리) -> +10점
-            for kw in self.trend_keywords:
-                if kw in content:
-                    score += 10
-                    reasons.append(f"트렌드({kw})")
+        # LLM에게 전달할 뉴스 데이터 축약 (전체 텍스트 대신 제목/설명만 제공하여 토큰 절약)
+        prompt_news_data = []
+        for idx, news in enumerate(news_list):
+            prompt_news_data.append({
+                "id": idx,
+                "title": news['title'],
+                "desc": news['desc'],
+                "source": news['source']
+            })
 
-            # 2. 비즈니스/마케팅 키워드 (실무 연관) -> +5점
-            for kw in self.biz_keywords:
-                if kw in content:
-                    score += 5
-                    reasons.append(f"비즈니스({kw})")
+        system_prompt = f"""
+당신은 대한민국 최고의 식품/유통 산업 전문 '마케팅 전략 분석가'입니다. 
+주 타겟 독자는 50대 식품 제조사(특히 육가공/HMR 주력) 마케팅 팀장입니다.
 
-            # 3. 위기 요인 (놓치면 안됨) -> +20점 (긴급)
-            for kw in self.risk_keywords:
-                if kw in content:
-                    score += 20
-                    reasons.append(f"🚨Risk({kw})")
-                    news['is_critical'] = True
+다음은 오늘 수집된 뉴스 기사 목록({len(news_list)}건)입니다.
+이 중에서 마케팅 팀장님께서 반드시 알아야 할 **가장 중요하고 인사이트가 넘치는 기사 Top 10**을 엄선해 주세요.
 
-            # 4. 타겟/판매채널 (Target & Channel)
-            target_matches = [k for k in self.target_keywords if k in content]
-            score += len(target_matches) * 10
-            reasons.extend([f"타겟({k})" for k in target_matches])
-            
-            # 5. 경쟁사 (Competitors) - 전략적 중요도 높음
-            competitor_matches = [k for k in self.competitor_keywords if k in content]
-            score += len(competitor_matches) * 15 # 경쟁사 소식은 더 높은 가중치
-            reasons.extend([f"경쟁사({k})" for k in competitor_matches])
-            
-            # 진주햄/육가공 직접 언급은 기본 점수 부여
-            if "진주햄" in content or "육가공" in content:
-                score += 10
-                reasons.append("관심기업/산업")
+## 선정 기준 (중요도 순)
+1. 🚨 **위기 요인 (Crisis/Risk)**: 원자재, 물가, 식중독, 리콜 등 즉각 대응이 필요한 이슈
+2. 💡 **메가 트렌드 (Trend)**: 푸드테크, K-푸드, 헬시플레저, MZ/잘파세대 식문화 등 미래 먹거리
+3. 🎯 **경쟁사 동향 (Competitors)**: 주요 경쟁사의 신제품, 마케팅 전략, 실적 발표
+4. 💼 **비즈니스 기회 (Opportunity)**: 편의점 신상, 팝업스토어, 이종간 콜라보 등 차용 가능한 아이디어
 
-            news['score'] = score
-            news['reasons'] = ", ".join(list(set(reasons))) # 중복 제거
+## 주요 관심 키워드 (참고용)
+- 트렌드: {', '.join(self.trend_keywords)}
+- 비즈니스: {', '.join(self.biz_keywords)}
+- 경쟁사: {', '.join(self.competitor_keywords)}
+- 리스크: {', '.join(self.risk_keywords)}
+
+## 응답 포맷 (반드시 JSON 포맷으로만 응답할 것)
+```json
+[
+  {{
+    "original_id": 0,
+    "score": 95,
+    "reasons": "K-푸드 수출, 푸드테크 적용",
+    "insight": "경쟁사의 해외 진출 모델 벤치마킹 및 자사 신관심도 제고 방안 모색 필요",
+    "is_critical": false
+  }},
+  ... (Top 10개)
+]
+```
+- `original_id`: 원본 뉴스 목록에 부여된 id 숫자
+- `score`: 중요도 점수 (1~100)
+- `reasons`: 선정한 핵심 키워드나 이유 (짧은 구문 2~3개)
+- `insight`: 마케팅 팀장 관점에서 이 기사가 왜 중요한지('Why This Matters')에 대한 1~2문장의 전략적 코멘트
+- `is_critical`: 즉각적인 대응이나 각별한 주의가 필요한 치명적 위기/리스크 기사인 경우 true, 아니면 false
+"""
+        
+        try:
+            client = openai.OpenAI(api_key=self.api_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": json.dumps(prompt_news_data, ensure_ascii=False)}
+                ],
+                temperature=0.3,
+                max_tokens=2000,
+                response_format={ "type": "json_object" } # 강제 JSON 응답 (단, 최상위를 dict로 래핑해야 안전할 수 있음. 여기서는 프롬프트 지시를 믿음)
+            )
             
-            # 인사이트 생성 (규칙 기반)
-            if 'is_critical' in news:
-                news['insight'] = "위기 요인 감지. 공급망 점검 및 리스크 대응 방안 수립 필요."
-            elif score >= 20:
-                news['insight'] = "업계 주요 트렌드와 전략이 결합된 기사. 신제품 기획 및 마케팅 전략에 벤치마킹 필요."
-            elif score >= 10:
-                news['insight'] = "시장 동향 파악을 위한 참고 자료. 경쟁사 움직임 주시 필요."
-            else:
-                news['insight'] = "일반적인 업계 소식."
-                
-            analyzed_list.append(news)
+            # OpenAI API의 json_object 모드는 최상위가 dict여야 하므로 프롬프트와 호환되게 처리
+            # 하지만 최신 gpt-4o-mini 등은 배열 반환도 잘 지원하거나, 혹은 dict 내 배열을 꺼냅니다.
+            content = response.choices[0].message.content
             
-        # 점수 내림차순 정렬
-        analyzed_list.sort(key=lambda x: x['score'], reverse=True)
-        return analyzed_list
+            # 파싱 보정
+            try:
+                result_json = json.loads(content)
+                # 만약 최상위 객체가 dict이고 그 안에 리스트가 있다면 추출
+                if isinstance(result_json, dict):
+                    # dict의 value 중 list인 것을 찾음
+                    for val in result_json.values():
+                        if isinstance(val, list):
+                            result_json = val
+                            break
+            except Exception as parse_e:
+                print(f"⚠️ JSON 파싱 에러: {parse_e}\nContent: {content}")
+                return news_list[:10]
+
+            top_10_results = result_json[:10]
+            
+            final_news_list = []
+            for item in top_10_results:
+                orig_id = item.get("original_id")
+                if orig_id is not None and 0 <= orig_id < len(news_list):
+                    news = news_list[orig_id]
+                    news['score'] = item.get("score", 0)
+                    news['reasons'] = item.get("reasons", "")
+                    news['insight'] = item.get("insight", "")
+                    news['is_critical'] = item.get("is_critical", False)
+                    final_news_list.append(news)
+                    
+            print(f"✅ [전략 분석가] OpenAI 분석 완료: {len(final_news_list)}건 선정.")
+            return final_news_list
+
+        except Exception as e:
+            print(f"❌ [전략 분석가] OpenAI API 호출 실패: {e}")
+            # 폴백: 점수가 없으므로 단순히 앞의 10개만 리턴하고 기본 정보 입력
+            for news in news_list[:10]:
+                news['score'] = 50
+                news['reasons'] = "추출 실패 폴백"
+                news['insight'] = "LLM API 오류로 인한 자동 추출"
+                news['is_critical'] = False
+            return news_list[:10]
+
 
 
 class NewsEditor:
