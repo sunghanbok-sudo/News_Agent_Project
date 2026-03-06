@@ -534,140 +534,147 @@ class NewsMessenger:
 
             # 카테고리별 색상 맵
             CATEGORY_COLORS = {
-                "국제 이슈": "#1565C0",
-                "유통/시장 시황": "#2E7D32",
-                "물가 및 원재료": "#C62828",
-                "트렌드 및 신기술/신제품": "#6A1B9A",
-                "국내 식품 핫뉴스": "#E65100",
-                "미분류": "#546E7A",
+                "국제 이슈": "#1A3A6B",
+                "유통/시장 시황": "#1A5C2E",
+                "물가 및 원재료": "#8B1A1A",
+                "트렌드 및 신기술/신제품": "#4A1A6B",
+                "국내 식품 핫뉴스": "#7A3A00",
+                "미분류": "#3A3A3A",
             }
             CATEGORY_ICONS = {
-                "국제 이슈": "🌐",
-                "유통/시장 시황": "🏪",
-                "물가 및 원재료": "📊",
-                "트렌드 및 신기술/신제품": "💡",
-                "국내 식품 핫뉴스": "🔥",
-                "미분류": "📌",
+                "국제 이슈": "GLOBAL",
+                "유통/시장 시황": "MARKET",
+                "물가 및 원재료": "MATERIAL",
+                "트렌드 및 신기술/신제품": "TREND",
+                "국내 식품 핫뉴스": "HOT",
+                "미분류": "ETC",
             }
 
-            # 카테고리별 요약 통계 (헤더용)
-            category_count_html = ""
-            for cat, items_in_cat in categorized_news.items():
-                color = CATEGORY_COLORS.get(cat, "#546E7A")
-                icon = CATEGORY_ICONS.get(cat, "📌")
-                category_count_html += f"""
-                <div style="display: inline-block; margin: 4px 6px; background-color: {color}15; border: 1px solid {color}40; border-radius: 20px; padding: 5px 14px; white-space: nowrap;">
-                    <span style="font-size: 13px; color: {color}; font-weight: 700;">{icon} {cat}</span>
-                    <span style="font-size: 12px; color: #888; margin-left: 4px;">{len(items_in_cat)}건</span>
-                </div>"""
-
-            # 각 기사 카드 생성
+            # 각 기사 행 생성 (신문 스타일)
             news_items_html = ""
             article_no = 0
             for category, items in categorized_news.items():
-                color = CATEGORY_COLORS.get(category, "#546E7A")
-                icon = CATEGORY_ICONS.get(category, "📌")
+                color = CATEGORY_COLORS.get(category, "#3A3A3A")
+                label = CATEGORY_ICONS.get(category, "ETC")
+                # 카테고리 섹션 헤더 (신문 구분선 스타일)
                 news_items_html += f"""
-                <div style="margin-top: 32px; margin-bottom: 10px;">
-                    <div style="display: flex; align-items: center; border-bottom: 2px solid {color}; padding-bottom: 8px; margin-bottom: 16px;">
-                        <span style="font-size: 18px; margin-right: 8px;">{icon}</span>
-                        <h2 style="margin: 0; color: {color}; font-size: 14px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;">{category}</h2>
-                        <span style="margin-left: auto; font-size: 11px; color: {color}; background-color: {color}15; border-radius: 10px; padding: 2px 10px; font-weight: 600;">{len(items)}개 기사</span>
-                    </div>
-                </div>
+                <tr><td colspan="2" style="padding: 20px 0 6px 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td style="border-top: 3px solid #111; padding-top: 4px; vertical-align: top; width: 5px; padding-right: 10px;">
+                                <div style="background-color: {color}; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 1px; padding: 2px 6px; white-space: nowrap; display: inline-block;">{label}</div>
+                            </td>
+                            <td style="border-top: 1px solid #CCC; padding-top: 4px; vertical-align: top;">
+                                <span style="color: {color}; font-size: 13px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">{category}</span>
+                                <span style="color: #999; font-size: 11px; margin-left: 8px;">— {len(items)}건</span>
+                            </td>
+                        </tr>
+                    </table>
+                </td></tr>
                 """
                 for news in items:
                     article_no += 1
-                    badge = f'<span style="display: inline-block; background-color: #D32F2F; color: white; font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-right: 6px; vertical-align: middle; font-weight: 700;">CRITICAL</span>' if news.get('is_critical') else ""
-                    source = news.get('source', '')
+                    badge = f'<span style="background:#B22222;color:#fff;font-size:9px;padding:1px 5px;font-weight:900;letter-spacing:0.5px;margin-right:5px;vertical-align:middle;">URGENT</span>' if news.get('is_critical') else ""
+
+                    # 날짜 처리
                     pub_date = news.get('pub_date', '')
-                    # pub_date 를 짧게 표시
                     try:
                         import email.utils as eu
                         dt = eu.parsedate_to_datetime(pub_date)
-                        date_str = dt.strftime('%m/%d')
+                        date_str = dt.strftime('%m.%d')
                     except:
                         date_str = ""
-                    
-                    meta_html = ""
-                    if source or date_str:
-                        meta_parts = []
-                        if date_str: meta_parts.append(f'<span style="color: #888; font-size: 11px;">📅 {date_str}</span>')
-                        if source:  meta_parts.append(f'<span style="color: #888; font-size: 11px;">📰 {source}</span>')
-                        meta_html = f'<div style="margin-top: 10px; border-top: 1px solid #F0F0F0; padding-top: 7px;">{"&nbsp;&nbsp;·&nbsp;&nbsp;".join(meta_parts)}</div>'
+
+                    # 기사 요약 (desc)
+                    desc_text = news.get('desc', '')
+                    # 너무 길면 100자 내외로 자름
+                    if len(desc_text) > 110:
+                        desc_text = desc_text[:108].rstrip() + "…"
+                    desc_html = f'<p style="margin: 4px 0 0 0; font-size: 12px; color: #666; line-height: 1.5; font-style: italic;">{desc_text}</p>' if desc_text else ""
+
+                    date_html = f'<span style="color:#999;font-size:10px;margin-left:6px;">({date_str})</span>' if date_str else ""
 
                     item_html = f"""
-                    <div style="margin-bottom: 12px; padding: 14px 16px; background-color: #ffffff; border: 1px solid #EBEBEB; border-left: 4px solid {color}; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
-                        <div style="display: flex; align-items: flex-start; gap: 10px;">
-                            <span style="flex-shrink: 0; width: 24px; height: 24px; background-color: {color}; color: white; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 24px; padding: 0;">{article_no}</span>
-                            <div style="flex: 1; min-width: 0;">
-                                <h3 style="margin: 0 0 8px 0; font-size: 15px; line-height: 1.45; font-weight: 600;">
-                                    {badge}<a href="{news['link']}" style="color: #0A192F; text-decoration: none;">{news['title']}</a>
-                                </h3>
-                                <div style="display: flex; flex-wrap: wrap; gap: 6px 0; align-items: baseline;">
-                                    <span style="font-size: 11px; font-weight: 700; color: {color}; background: {color}15; border-radius: 3px; padding: 1px 7px; margin-right: 8px; flex-shrink: 0;">WHY?</span>
-                                    <span style="font-size: 13px; color: #333; line-height: 1.55;">{news['insight']}</span>
-                                </div>
-                                <div style="margin-top: 7px; display: flex; flex-wrap: wrap; gap: 6px 0; align-items: baseline;">
-                                    <span style="font-size: 11px; font-weight: 700; color: #888; background: #F5F5F5; border-radius: 3px; padding: 1px 7px; margin-right: 8px; flex-shrink: 0;">키워드</span>
-                                    <span style="font-size: 12px; color: #666; line-height: 1.4;">{news['reasons']}</span>
-                                </div>
-                                {meta_html}
-                            </div>
-                        </div>
-                    </div>
+                    <tr><td colspan="2" style="padding: 10px 0; border-bottom: 1px dotted #DDD;">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="vertical-align: top; width: 22px; padding-top: 1px; padding-right: 8px; color: {color}; font-size: 11px; font-weight: 900; font-family: 'Georgia', serif;">{article_no}</td>
+                                <td style="vertical-align: top;">
+                                    <div>
+                                        {badge}<a href="{news['link']}" style="color: #111; text-decoration: none; font-size: 14px; font-weight: 700; line-height: 1.4; font-family: 'Georgia', 'Times New Roman', serif;">{news['title']}</a>{date_html}
+                                    </div>
+                                    {desc_html}
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 7px;">
+                                        <tr>
+                                            <td style="vertical-align: top; padding-right: 12px; border-right: 1px solid #EEE; width: 48%;">
+                                                <span style="font-size: 9px; font-weight: 900; color: {color}; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px;">▶ 인사이트</span>
+                                                <span style="font-size: 12px; color: #333; line-height: 1.5;">{news['insight']}</span>
+                                            </td>
+                                            <td style="vertical-align: top; padding-left: 12px; width: 48%;">
+                                                <span style="font-size: 9px; font-weight: 900; color: #888; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px;">◆ 키워드</span>
+                                                <span style="font-size: 11px; color: #555; line-height: 1.5;">{news['reasons']}</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td></tr>
                     """
                     news_items_html += item_html
 
-            today_str_display = datetime.now().strftime('%Y년 %m월 %d일')
             total_articles = len(report_data)
+            today_formatted = datetime.now().strftime('%Y년 %m월 %d일')
+            issue_no = datetime.now().isocalendar()[1]  # 주차
 
             html_content = f"""
             <html>
-            <body style="font-family: 'Helvetica Neue', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 720px; margin: 0 auto; padding: 10px 0; color: #222; background-color: #EEEEF2;">
+            <body style="margin: 0; padding: 0; background-color: #F0EDE8; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
+            <div style="max-width: 700px; margin: 20px auto; background-color: #FAFAF7;">
 
-                <!-- HEADER BANNER -->
-                <div style="background: linear-gradient(135deg, #0A192F 0%, #1B3A5C 100%); padding: 28px 36px 22px 36px; border-radius: 10px 10px 0 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <div>
-                            <p style="margin: 0; color: #C5A880; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Jinju Ham · Food Industry</p>
-                            <h1 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">식품 관련 뉴스 클리핑</h1>
-                        </div>
-                        <div style="text-align: right; color: #A0B3C6;">
-                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #C5A880;">{total_articles}</p>
-                            <p style="margin: 0; font-size: 11px;">Selected Articles</p>
-                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #8098AF;">{datetime.now().strftime('%Y.%m.%d')}</p>
-                        </div>
+                <!-- MASTHEAD -->
+                <div style="padding: 0 32px;">
+                    <!-- Top rule -->
+                    <div style="border-top: 5px solid #111; border-bottom: 1px solid #111; padding: 5px 0; margin-top: 24px; text-align: center;">
+                        <span style="font-size: 10px; font-weight: 700; letter-spacing: 3px; color: #555; text-transform: uppercase;">JINJU HAM &nbsp;·&nbsp; FOOD INDUSTRY INTELLIGENCE &nbsp;·&nbsp; INTERNAL USE ONLY</span>
                     </div>
-                    <!-- Category pills -->
-                    <div style="margin-top: 14px; line-height: 2;">
-                        {category_count_html}
+
+                    <!-- Title -->
+                    <div style="text-align: center; padding: 14px 0 8px 0;">
+                        <h1 style="margin: 0; font-size: 42px; font-weight: 900; letter-spacing: -1px; color: #111; font-family: 'Georgia', 'Times New Roman', serif; line-height: 1;">식품 뉴스 클리핑</h1>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #666; font-family: 'Georgia', serif; font-style: italic;">Weekly Food Industry News Curation — The Most Important Stories</p>
+                    </div>
+
+                    <!-- Issue strip -->
+                    <div style="border-top: 2px solid #111; border-bottom: 2px solid #111; padding: 6px 0; display: flex; justify-content: space-between; margin-bottom: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="font-size: 11px; font-weight: 700; color: #333; letter-spacing: 0.5px;">VOL. {datetime.now().year} &nbsp;|&nbsp; ISSUE {issue_no}</td>
+                                <td style="font-size: 11px; color: #333; text-align: center; font-weight: 700;">선별 기사 {total_articles}건</td>
+                                <td style="font-size: 11px; font-weight: 700; color: #333; text-align: right;">{today_formatted}</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
 
-                <!-- MAIN BODY -->
-                <div style="background-color: #FFFFFF; padding: 10px 28px 36px 28px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.07);">
-
-                    <!-- Intro strip -->
-                    <div style="background: linear-gradient(90deg, #0A192F08, #C5A88012); border-left: 3px solid #C5A880; border-radius: 0 4px 4px 0; padding: 11px 16px; margin: 20px 0 6px 0;">
-                        <p style="margin: 0; font-size: 13px; color: #4A5568; line-height: 1.6;">
-                            <strong style="color: #0A192F;">진주햄 가족을 위한 주간 뉴스 요약</strong><br>
-                            <span style="color: #777;">{datetime.now().strftime('%Y년 %m월 %d일')} &nbsp;|&nbsp; Gemini AI가 {total_articles}건을 엄선했습니다.</span>
-                        </p>
-                    </div>
-
-                    {news_items_html}
+                <!-- BODY -->
+                <div style="padding: 0 32px 32px 32px; background-color: #FAFAF7;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        {news_items_html}
+                    </table>
                 </div>
 
                 <!-- FOOTER -->
-                <div style="margin-top: 16px; padding: 14px 0; text-align: center;">
-                    <p style="margin: 0 0 3px 0; font-size: 11px; color: #9BA4B5; letter-spacing: 0.3px;">This report is automatically curated by the AI Strategic Management System.</p>
-                    <p style="margin: 0; font-size: 11px; color: #9BA4B5;">&copy; {datetime.now().year} Jinju Ham Marketing & Sales. Strictly Confidential &amp; Internal Use Only.</p>
+                <div style="border-top: 3px double #111; margin: 0 32px; padding: 14px 0 24px 0; text-align: center;">
+                    <p style="margin: 0 0 3px 0; font-size: 10px; color: #999; letter-spacing: 0.5px;">Automatically curated by the AI Strategic Management System · Powered by Google Gemini</p>
+                    <p style="margin: 0; font-size: 10px; color: #999;">&copy; {datetime.now().year} Jinju Ham Co., Ltd. Marketing &amp; Sales Division &nbsp;·&nbsp; Strictly Confidential</p>
                 </div>
 
+            </div>
             </body>
             </html>
             """
+
 
 
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
