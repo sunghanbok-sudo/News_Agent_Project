@@ -327,13 +327,17 @@ class NewsStrategist:
             return fallback_list
             
         # LLM에게 전달할 뉴스 데이터 축약 (전체 텍스트 대신 제목/설명만 제공하여 토큰 절약)
+        # 최적화 적용(보보팀장): LLM 전송 기사 수 최대 60개 제한, desc 100자 절사, 불필요한 source 제거
         prompt_news_data = []
-        for idx, news in enumerate(news_list):
+        optimized_news_list = news_list[:60]
+        for idx, news in enumerate(optimized_news_list):
+            desc_text = news.get('desc', '')
+            if len(desc_text) > 100:
+                desc_text = desc_text[:98] + ".."
             prompt_news_data.append({
                 "id": idx,
                 "title": news['title'],
-                "desc": news['desc'],
-                "source": news['source']
+                "desc": desc_text
             })
 
         system_prompt = f"""

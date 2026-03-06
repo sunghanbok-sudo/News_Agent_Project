@@ -5,10 +5,6 @@ on:
     # 매주 금요일 한국 시간 오전 6시 (UTC 목요일 21:00)
     - cron: '0 21 * * 4'
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'v2/**'
 
 jobs:
   run-news-agent-v2:
