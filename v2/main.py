@@ -12,7 +12,7 @@ import os
 import sys
 import email.utils
 import difflib
-import openai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 
@@ -286,12 +286,10 @@ class NewsStrategist:
     - 타겟: 50대 식품 마케팅 팀장
     """
     def __init__(self):
-        # OpenAI API Key 확인
-        self.api_key = os.environ.get("OPENAI_API_KEY")
+        # Gemini API Key 확인
+        self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
-            print("⚠️ [전략 분석가] OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해 주세요.")
-        else:
-            openai.api_key = self.api_key
+            print("⚠️ [전략 분석가] GEMINI_API_KEY가 설정되지 않았습니다. .env 파일이나 환경 변수를 확인해 주세요.")
 
         # 키워드 (LLM 프롬프트에 컨텍스트로 제공할 용도)
         keywords = self._load_keywords()
@@ -320,14 +318,14 @@ class NewsStrategist:
         }
 
     def analyze(self, news_list):
-        print("📊 [전략 분석가] 뉴스 분석 및 Top 15 선정 중 (OpenAI 카테고리별 할당)...")
+        print("📊 [전략 분석가] 뉴스 분석 및 Top 15 선정 중 (Gemini 카테고리별 할당)...")
         
         if not self.api_key or not news_list:
             print("⚠️ [전략 분석가] API 키가 없거나 뉴스 목록이 비어 기존 Rule-based 로직(또는 빈 리스트)으로 폴백합니다.")
             fallback_list = news_list[:15]
             for news in fallback_list:
                 news['score'] = 50
-                news['reasons'] = "OpenAI 연결 실패(Fallback)"
+                news['reasons'] = "Gemini 연결 실패(Fallback)"
                 news['insight'] = "현재 분석 엔진에 접근할 수 없어 단순 상위 15개 기사를 추출했습니다."
                 news['is_critical'] = False
                 news['category'] = "미분류"
@@ -385,21 +383,12 @@ class NewsStrategist:
 """
         
         try:
-            client = openai.OpenAI(api_key=self.api_key)
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": json.dumps(prompt_news_data, ensure_ascii=False)}
-                ],
-                temperature=0.3,
-                max_tokens=2000,
-                response_format={ "type": "json_object" } # 강제 JSON 응답 (단, 최상위를 dict로 래핑해야 안전할 수 있음. 여기서는 프롬프트 지시를 믿음)
-            )
+            genai.configure(api_key=self.api_key)
+            model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+            prompt_input = f"{system_prompt}\n\n뉴스 데이터:\n{json.dumps(prompt_news_data, ensure_ascii=False)}"
             
-            # OpenAI API의 json_object 모드는 최상위가 dict여야 하므로 프롬프트와 호환되게 처리
-            # 하지만 최신 gpt-4o-mini 등은 배열 반환도 잘 지원하거나, 혹은 dict 내 배열을 꺼냅니다.
-            content = response.choices[0].message.content
+            response = model.generate_content(prompt_input)
+            content = response.text
             
             # 파싱 보정
             try:
@@ -430,11 +419,11 @@ class NewsStrategist:
                     news['category'] = item.get("category", "미분류")
                     final_news_list.append(news)
                     
-            print(f"✅ [전략 분석가] OpenAI 분석 완료: {len(final_news_list)}건 선정.")
+            print(f"✅ [전략 분석가] Gemini 분석 완료: {len(final_news_list)}건 선정.")
             return final_news_list
 
         except Exception as e:
-            print(f"❌ [전략 분석가] OpenAI API 호출 실패: {e}")
+            print(f"❌ [전략 분석가] Gemini API 호출 실패: {e}")
             # 폴백: 점수가 없으므로 단순히 앞의 15개만 리턴하고 기본 정보 입력
             for news in news_list[:15]:
                 news['score'] = 50
@@ -464,8 +453,8 @@ class NewsEditor:
         # 상위 15개 선정 (점수가 너무 낮은건 제외할 수도 있음)
         top_news = analyzed_news[:15]
         
-        markdown_content = f"# 📊 FOOD INDUSTRY STRATEGIC INSIGHT ({today_str})\n\n"
-        markdown_content += "> **Executive Summary**: 엄선된 최신 식품 산업 트렌드 및 시황 {len(top_news)}선입니다.\n\n"
+        markdown_content = f"# 📊 식품 관련 뉴스 클리핑\n\n"
+        markdown_content += f"> **{today_str}** | 진주햄 가족을 위한 금주의 뉴스 요약\n\n"
         
         # 카테고리별 그룹화
         categorized_news = {}
@@ -578,15 +567,14 @@ class NewsMessenger:
             <body style="font-family: 'Helvetica Neue', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 10px; color: #333; background-color: #F8F9FA;">
                 
                 <div style="background-color: #0A192F; padding: 30px 40px; border-radius: 8px 8px 0 0; text-align: center;">
-                    <h1 style="margin: 0; color: #FFFFFF; font-size: 26px; font-weight: 300; letter-spacing: 2px;">STRATEGIC <span style="font-weight: 700; color: #C5A880;">INSIGHT</span></h1>
-                    <p style="margin: 10px 0 0 0; color: #A0B3C6; font-size: 14px; letter-spacing: 1px;">FOOD INDUSTRY BRIEFING &middot; {datetime.now().strftime('%Y-%m-%d')}</p>
+                    <h1 style="margin: 0; color: #FFFFFF; font-size: 26px; font-weight: 300; letter-spacing: 2px;">식품 관련 <span style="font-weight: 700; color: #C5A880;">뉴스 클리핑</span></h1>
+                    <p style="margin: 10px 0 0 0; color: #A0B3C6; font-size: 14px; letter-spacing: 1px;">{datetime.now().strftime('%Y-%m-%d')}</p>
                 </div>
                 
                 <div style="background-color: #FFFFFF; padding: 0 40px 40px 40px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                     <div style="background-color: #F4F6F8; padding: 20px; text-align: center; border-radius: 4px; margin: 30px 0; border-top: 2px solid #C5A880;">
                         <p style="margin: 0; font-size: 15px; color: #4A5568; line-height: 1.6;">
-                            <strong>지속가능한 성장을 위한 마케팅/영업 인사이트</strong><br/>
-                            카테고리별로 엄선된 핵심 트렌드 및 시황 {len(report_data)}선을 요약 보고합니다.
+                            <strong>진주햄 가족을 위한 금주의 뉴스 요약</strong>
                         </p>
                     </div>
 
