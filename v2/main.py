@@ -38,6 +38,16 @@ class NewsCollector:
     """
     def __init__(self):
         self.headers = {"User-Agent": "Mozilla/5.0"}
+        # 제외 키워드 로드
+        keywords_path = os.path.join(BASE_DIR, "keywords.json")
+        self.exclude_keywords = []
+        if os.path.exists(keywords_path):
+            try:
+                with open(keywords_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.exclude_keywords = data.get("exclude_keywords", [])
+            except:
+                pass
     
     def collect(self, queries):
         print(f"🔎 [수집가] 뉴스 수집 시작: {queries}")
@@ -155,6 +165,18 @@ class NewsCollector:
                     
                 desc = desc_node.text.strip() if desc_node else ""
                 
+                # 제외 키워드 필터링
+                content_to_check = title + " " + desc
+                is_excluded = False
+                for ex_kw in self.exclude_keywords:
+                    if ex_kw in content_to_check:
+                        print(f"🚫 [수집가] 제외 키워드 '{ex_kw}' 발견하여 수집 제외: {title}")
+                        is_excluded = True
+                        break
+                        
+                if is_excluded:
+                    continue
+                
                 items.append({
                     "title": title,
                     "link": link,
@@ -197,6 +219,18 @@ class NewsCollector:
                 # RSS는 description에 HTML이 섞여있을 수 있음
                 desc_html = item.description.text if item.description else ""
                 desc_clean = BeautifulSoup(desc_html, "html.parser").text[:200]
+                
+                # 제외 키워드 필터링
+                content_to_check = title + " " + desc_clean
+                is_excluded = False
+                for ex_kw in self.exclude_keywords:
+                    if ex_kw in content_to_check:
+                        print(f"🚫 [수집가] 제외 키워드 '{ex_kw}' 발견하여 수집 제외 (구글): {title}")
+                        is_excluded = True
+                        break
+                        
+                if is_excluded:
+                    continue
                 
                 if title:
                     # 날짜 필터링 (Python 레벨에서 2차 검증)
