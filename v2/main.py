@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import email.utils
+import difflib
 from dotenv import load_dotenv
 
 # .env 파일 로드 (환경변수 설정)
@@ -48,11 +49,25 @@ class NewsCollector:
             except Exception as e:
                 print(f"❌ [수집가] '{query}' 수집 중 에러: {e}")
 
-        # 중복 제거 (URL 기준)
+        # 중복 제거 (URL 및 제목 유사도 기준)
         seen_links = set()
         unique_news = []
+        
         for n in all_news:
-            if n['link'] not in seen_links:
+            if n['link'] in seen_links:
+                continue
+                
+            # 의미적 중복(제목 유사도) 검사
+            is_semantic_duplicate = False
+            for existing_news in unique_news:
+                # SequenceMatcher를 이용해 제목 유사도가 65% 이상이면 중복으로 처리
+                similarity = difflib.SequenceMatcher(None, n['title'], existing_news['title']).ratio()
+                if similarity >= 0.65:
+                    print(f"🚫 [수집가] 의미적 중복 기사 제외 (유사도 {similarity:.2f}):\n  - 원본: {existing_news['title']}\n  - 중복: {n['title']}")
+                    is_semantic_duplicate = True
+                    break
+            
+            if not is_semantic_duplicate:
                 seen_links.add(n['link'])
                 unique_news.append(n)
 
