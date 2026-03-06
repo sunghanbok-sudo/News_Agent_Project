@@ -464,8 +464,8 @@ class NewsEditor:
         # 상위 15개 선정 (점수가 너무 낮은건 제외할 수도 있음)
         top_news = analyzed_news[:15]
         
-        markdown_content = f"# ☕ [Marketing Brief] 식품업계 모닝 인사이트 ({today_str})\n\n"
-        markdown_content += "> **Executive Summary**: 엄선한 최근 식품 산업 트렌드와 주요 이슈 15선입니다.\n\n"
+        markdown_content = f"# 📊 FOOD INDUSTRY STRATEGIC INSIGHT ({today_str})\n\n"
+        markdown_content += "> **Executive Summary**: 엄선된 최신 식품 산업 트렌드 및 시황 {len(top_news)}선입니다.\n\n"
         
         # 카테고리별 그룹화
         categorized_news = {}
@@ -476,9 +476,9 @@ class NewsEditor:
             categorized_news[cat].append(news)
             
         for category, items in categorized_news.items():
-            markdown_content += f"## 📌 {category}\n\n"
+            markdown_content += f"## ◼ {category}\n\n"
             for news in items:
-                icon = "🚨" if news.get('is_critical') else "💡"
+                icon = "🔻" if news.get('is_critical') else "🔹"
                 markdown_content += f"### {icon} [{news['title']}]({news['link']})\n"
                 markdown_content += f"- **Why This Matters**: {news['insight']}\n"
                 markdown_content += f"- **Key Keywords**: {news['reasons']}\n\n"
@@ -548,40 +548,54 @@ class NewsMessenger:
             news_items_html = ""
             for category, items in categorized_news.items():
                 news_items_html += f"""
-                <div style="margin-top: 30px; padding: 10px; background-color: #f1f8e9; border-radius: 5px;">
-                    <h2 style="margin: 0; color: #2e7d32; font-size: 20px;">📌 {category}</h2>
+                <div style="margin-top: 35px; margin-bottom: 15px; border-bottom: 2px solid #0A192F; padding-bottom: 5px;">
+                    <h2 style="margin: 0; color: #0A192F; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                        ■ {category}
+                    </h2>
                 </div>
                 """
                 for news in items:
-                    icon = "🚨" if news.get('is_critical') else "💡"
+                    badge = """<span style="display: inline-block; background-color: #D32F2F; color: white; font-size: 11px; padding: 2px 6px; border-radius: 3px; margin-right: 5px; vertical-align: middle;">CRITICAL</span>""" if news.get('is_critical') else ""
                     item_html = f"""
-                    <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-                        <h3 style="margin-bottom: 10px; font-size: 16px;">
-                            {icon} <a href="{news['link']}" style="color: #1a73e8; text-decoration: none;">{news['title']}</a>
+                    <div style="margin-bottom: 25px; padding: 15px; background-color: #ffffff; border: 1px solid #EAEAEA; border-left: 4px solid #C5A880; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                        <h3 style="margin: 0 0 12px 0; font-size: 16px; line-height: 1.4;">
+                            {badge}<a href="{news['link']}" style="color: #0A192F; text-decoration: none; font-weight: 600;">{news['title']}</a>
                         </h3>
-                        <p style="margin: 5px 0; font-size: 14px;"><strong>🎯 Why This Matters:</strong> {news['insight']}</p>
-                        <p style="margin: 5px 0; color: #666; font-size: 13px;"><strong>🏷️ Key Keywords:</strong> {news['reasons']}</p>
+                        <div style="margin-bottom: 8px;">
+                            <span style="display: inline-block; font-size: 12px; font-weight: 700; color: #555; width: 120px;">Why This Matters</span>
+                            <span style="font-size: 14px; color: #333; line-height: 1.5;">{news['insight']}</span>
+                        </div>
+                        <div>
+                            <span style="display: inline-block; font-size: 12px; font-weight: 700; color: #aaa; width: 120px;">Key Keywords</span>
+                            <span style="font-size: 13px; color: #666;">{news['reasons']}</span>
+                        </div>
                     </div>
                     """
                     news_items_html += item_html
 
             html_content = f"""
             <html>
-            <body style="font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333;">
-                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                    <h1 style="margin: 0; color: #d32f2f; font-size: 24px;">☕ 식품업계 모닝 인사이트</h1>
-                    <p style="margin: 10px 0 0 0; color: #666;">📅 {datetime.now().strftime('%Y-%m-%d')} | 진주햄 가족을 위한 일간 뉴스 브리프</p>
+            <body style="font-family: 'Helvetica Neue', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 10px; color: #333; background-color: #F8F9FA;">
+                
+                <div style="background-color: #0A192F; padding: 30px 40px; border-radius: 8px 8px 0 0; text-align: center;">
+                    <h1 style="margin: 0; color: #FFFFFF; font-size: 26px; font-weight: 300; letter-spacing: 2px;">STRATEGIC <span style="font-weight: 700; color: #C5A880;">INSIGHT</span></h1>
+                    <p style="margin: 10px 0 0 0; color: #A0B3C6; font-size: 14px; letter-spacing: 1px;">FOOD INDUSTRY BRIEFING &middot; {datetime.now().strftime('%Y-%m-%d')}</p>
                 </div>
                 
-                <div style="background-color: #fff3e0; padding: 15px; border-left: 5px solid #ff9800; margin-bottom: 20px;">
-                    <strong>📢 Executive Summary:</strong> 카테고리별로 엄선한 핵심 산업 트렌드 및 시황 {len(report_data)}선입니다.
+                <div style="background-color: #FFFFFF; padding: 0 40px 40px 40px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    <div style="background-color: #F4F6F8; padding: 20px; text-align: center; border-radius: 4px; margin: 30px 0; border-top: 2px solid #C5A880;">
+                        <p style="margin: 0; font-size: 15px; color: #4A5568; line-height: 1.6;">
+                            <strong>지속가능한 성장을 위한 마케팅/영업 인사이트</strong><br/>
+                            카테고리별로 엄선된 핵심 트렌드 및 시황 {len(report_data)}선을 요약 보고합니다.
+                        </p>
+                    </div>
+
+                    {news_items_html}
                 </div>
 
-                {news_items_html}
-
-                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; font-size: 12px; color: #999; text-align: center;">
-                    <p>본 메일은 인공지능 전략 매니저에 의해 수집 및 분석 발송되었습니다.</p>
-                    <p>© 2026 Sunghun Bok. All rights reserved.</p>
+                <div style="margin-top: 30px; font-size: 11px; color: #9BA4B5; text-align: center; font-family: 'Arial', sans-serif; letter-spacing: 0.5px;">
+                    <p style="margin: 0 0 5px 0;">This report is automatically curated by the AI Strategic Management System.</p>
+                    <p style="margin: 0;">&copy; {datetime.now().year} Sunghun Bok. Strictly Confidential & Internal Use Only.</p>
                 </div>
             </body>
             </html>
@@ -596,7 +610,7 @@ class NewsMessenger:
                         msg = MIMEMultipart()
                         msg['From'] = self.email_user
                         msg['To'] = recipient
-                        msg['Subject'] = f"☕ [Insight] 식품업계 모닝 브리핑 ({datetime.now().strftime('%Y-%m-%d')})"
+                        msg['Subject'] = f"[Strategic Insight] 식품업계 비즈니스 브리핑 ({datetime.now().strftime('%m/%d')})"
                         msg.attach(MIMEText(html_content, 'html'))
                         
                         server.send_message(msg)
