@@ -1,9 +1,9 @@
-name: Daily News Agent V2 (Marketing)
+name: Weekly News Agent V2 (Marketing)
 
 on:
   schedule:
-    # 매일 한국 시간 오전 8시 (UTC 23:00)
-    - cron: '0 23 * * *'
+    # 매주 금요일 한국 시간 오전 6시 (UTC 목요일 21:00)
+    - cron: '0 21 * * 4'
   workflow_dispatch:
   push:
     branches: [ "main" ]
