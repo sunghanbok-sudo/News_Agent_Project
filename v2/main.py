@@ -168,6 +168,22 @@ class NewsCollector:
                         print(f"🚫 [수집가] 제외 키워드 '{ex_kw}' 발견하여 수집 제외: {title}")
                         is_excluded = True
                         break
+                
+                # [추가] 광고/홍보성 기사 패턴 필터링 (단일 채널 + 제품 출시/할인)
+                if not is_excluded:
+                    ad_patterns = [
+                        r".*출시.*", r".*선보여.*", r".*할인.*", r".*이벤트.*", r".*기획전.*",
+                        r".*팝업.*", r".*콜라보.*"
+                    ]
+                    # 채널명이 포함된 경우 (예: 세븐일레븐, 이마트 등)
+                    channel_patterns = [r"세븐일레븐", r"GS25", r"CU", r"이마트", r"홈플러스", r"롯데마트"]
+                    
+                    has_ad_keyword = any(re.search(p, title) for p in ad_patterns)
+                    has_channel = any(re.search(p, title) for p in channel_patterns)
+                    
+                    if has_ad_keyword and has_channel:
+                        print(f"🚫 [수집가] 광고/홍보성 패턴 감지하여 수집 제외: {title}")
+                        is_excluded = True
                         
                 if is_excluded:
                     continue
@@ -356,6 +372,11 @@ class NewsStrategist:
 3. **물가 및 원재료 (목표 2개)**: 인플레이션, 원자재 가격 변동, 애그플레이션, 식재료 수급 관련 이슈 (위기 요인 포함)
 4. **트렌드 및 신기술/신제품 (목표 3개)**: 푸드테크, 헬시플레저, 비건, 주요 경쟁사의 혁신적인 신제품 및 신기술
 5. **국내 식품 핫뉴스 (목표 2개)**: 그 외 국내 식품업계 전반의 주요 정책, 팝업스토어, 영업 실적, 콜라보레이션 등 핫이슈
+
+## 선정에서 제외할 기사 (중요)
+- **단순 광고/홍보성 기사**: 특정 유통 채널(편의점, 대형마트 등)에서 단순히 신제품을 출시했다거나 할인 행사를 한다는 기사는 지침이 없는 한 제외하십시오. (예: "XX편의점, YY치킨 출시", "ZZ마트, AA할인전")
+- **단순 보도자료**: 인사이트 없이 특정 기업의 단순 동정이나 일반적인 제품 홍보 기사는 지양합니다.
+- **이미 다룬 내용**: 중복된 주제나 이미 널리 알려진 신제품 뉴스는 점수를 낮게 부여하십시오.
 
 ## 응답 포맷 (반드시 JSON 포맷으로만 응답할 것)
 ```json
