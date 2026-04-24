@@ -343,7 +343,7 @@ class NewsStrategist:
             return fallback_list
             
         # LLM에게 전달할 뉴스 데이터 축약 (전체 텍스트 대신 제목/설명만 제공하여 토큰 절약)
-        # 최적화 적용(보보팀장): LLM 전송 기사 수 최대 60개 제한, desc 100자 절사, 불필요한 source 제거
+        # 최적화 적용(보보팀장): LLM 전송 기사 수 최대 60개 제한, desc 100자 절사, 불필요한 source 제거 (Gemini 3 기반)
         prompt_news_data = []
         optimized_news_list = news_list[:60]
         for idx, news in enumerate(optimized_news_list):
@@ -407,15 +407,27 @@ class NewsStrategist:
             prompt_input = f"{system_prompt}\n\n뉴스 데이터:\n{json.dumps(prompt_news_data, ensure_ascii=False)}"
             
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-3-flash-preview',
                 contents=prompt_input,
-                config=types.GenerateContentConfig(response_mime_type='application/json')
+                config=types.GenerateContentConfig(
+                    response_mime_type='application/json',
+                    temperature=0.1 # 분류 정확도 향상을 위해 온도를 낮춤
+                )
             )
             content = response.text
             
-            # 파싱 보정
+            # 파싱 보정 (마크다운 코드 블록 제거)
+            clean_content = content.strip()
+            if clean_content.startswith("```json"):
+                clean_content = clean_content[7:]
+            elif clean_content.startswith("```"):
+                clean_content = clean_content[3:]
+            if clean_content.endswith("```"):
+                clean_content = clean_content[:-3]
+            clean_content = clean_content.strip()
+            
             try:
-                result_json = json.loads(content)
+                result_json = json.loads(clean_content)
                 if "articles" in result_json:
                     result_json = result_json["articles"]
                 elif isinstance(result_json, dict):
@@ -426,13 +438,27 @@ class NewsStrategist:
                             break
             except Exception as parse_e:
                 print(f"⚠️ JSON 파싱 에러: {parse_e}\nContent: {content}")
-                return news_list[:15]
+                fallback_list = news_list[:15]
+                for news in fallback_list:
+                    news['score'] = 50
+                    news['reasons'] = "파싱 실패 폴백"
+                    news['insight'] = "결과 파싱 오류로 인한 자동 추출"
+                    news['is_critical'] = False
+                    news['category'] = "미분류"
+                return fallback_list
 
             top_results = result_json[:15]
             
             final_news_list = []
             for item in top_results:
                 orig_id = item.get("original_id")
+                # 안전 변환: 문자열 "3" → int 3
+                try:
+                    orig_id = int(orig_id) if orig_id is not None else None
+                except (ValueError, TypeError):
+                    print(f"⚠️ [전략 분석가] original_id 변환 실패: {orig_id}")
+                    continue
+                    
                 if orig_id is not None and 0 <= orig_id < len(news_list):
                     news = news_list[orig_id]
                     news['score'] = item.get("score", 0)
@@ -441,12 +467,26 @@ class NewsStrategist:
                     news['is_critical'] = item.get("is_critical", False)
                     news['category'] = item.get("category", "미분류")
                     final_news_list.append(news)
+                else:
+                    print(f"⚠️ [전략 분석가] original_id 범위 초과: {orig_id} (총 {len(news_list)}건)")
+            
+            # 매핑 결과가 너무 적으면 (예: LLM이 이상한 응답) 폴백
+            if len(final_news_list) < 5:
+                print(f"⚠️ [전략 분석가] 매핑 결과가 {len(final_news_list)}건으로 너무 적어 폴백합니다.")
+                fallback_list = news_list[:15]
+                for news in fallback_list:
+                    news['score'] = 50
+                    news['reasons'] = "매핑 실패 폴백"
+                    news['insight'] = "LLM 응답 매핑 오류로 인한 자동 추출"
+                    news['is_critical'] = False
+                    news['category'] = "미분류"
+                return fallback_list
                     
             print(f"✅ [전략 분석가] Gemini 분석 완료: {len(final_news_list)}건 선정.")
             return final_news_list
 
         except Exception as e:
-            print(f"❌ [전략 분석가] Gemini API 호출 실패: {e}")
+            print(f"❌ [전략 분석가] Gemini API 호출 실패 (상세에러): {str(e)}")
             # 폴백: 점수가 없으므로 단순히 앞의 15개만 리턴하고 기본 정보 입력
             for news in news_list[:15]:
                 news['score'] = 50
