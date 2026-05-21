@@ -735,7 +735,7 @@ class NewsMessenger:
                 brand_banner_html = f"""
                 <!-- JINJU HAM MIGRATED EXCELLENT HEADER BANNER -->
                 <div style="margin-top: 24px; margin-bottom: 8px; text-align: center; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.12); line-height: 0;">
-                    <img src="cid:{header_image_cid}" alt="Jinju Ham Family" style="width: 100%; max-height: 140px; object-fit: cover;" />
+                    <img src="cid:{header_image_cid}" alt="Jinju Ham Family" style="width: 100%; height: auto; display: block; border: 0;" />
                 </div>
                 """
             else:
@@ -750,50 +750,58 @@ class NewsMessenger:
             html_content = f"""
             <html>
             <body style="margin: 0; padding: 0; background-color: #E8F0EC; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
-            <div style="max-width: 700px; margin: 20px auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(23, 184, 144, 0.07); border: 1px solid #DFECE6;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #E8F0EC; width: 100% !important; margin: 0; padding: 30px 0; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
+                <tr>
+                    <td align="center" style="background-color: #E8F0EC; padding: 10px 0;">
+                        
+                        <!-- MAIN CARD CONTAINER -->
+                        <div style="max-width: 700px; width: 100%; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(23, 184, 144, 0.07); border: 1px solid #DFECE6; text-align: left;">
 
-                <!-- MASTHEAD -->
-                <div style="padding: 0 32px;">
-                    
-                    {brand_banner_html}
+                            <!-- MASTHEAD -->
+                            <div style="padding: 0 32px;">
+                                
+                                {brand_banner_html}
 
-                    <!-- Top rule -->
-                    <div style="border-top: 2px solid #111; border-bottom: 1px solid #111; padding: 5px 0; margin-top: 15px; text-align: center;">
-                        <span style="font-size: 10px; font-weight: 700; letter-spacing: 3px; color: #555; text-transform: uppercase;">JINJU HAM &nbsp;·&nbsp; FOOD INDUSTRY INTELLIGENCE &nbsp;·&nbsp; INTERNAL USE ONLY</span>
-                    </div>
+                                <!-- Top rule -->
+                                <div style="border-top: 2px solid #111; border-bottom: 1px solid #111; padding: 5px 0; margin-top: 15px; text-align: center;">
+                                    <span style="font-size: 10px; font-weight: 700; letter-spacing: 3px; color: #555; text-transform: uppercase;">JINJU HAM &nbsp;·&nbsp; FOOD INDUSTRY INTELLIGENCE &nbsp;·&nbsp; INTERNAL USE ONLY</span>
+                                </div>
 
-                    <!-- Title -->
-                    <div style="text-align: center; padding: 14px 0 8px 0;">
-                        <h1 style="margin: 0; font-size: 42px; font-weight: 900; letter-spacing: -1px; color: #111; font-family: 'Georgia', 'Times New Roman', serif; line-height: 1;">식품 뉴스 클리핑</h1>
-                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #666; font-family: 'Georgia', serif; font-style: italic;">Weekly Food Industry News Curation — The Most Important Stories</p>
-                    </div>
+                                <!-- Title -->
+                                <div style="text-align: center; padding: 14px 0 8px 0;">
+                                    <h1 style="margin: 0; font-size: 42px; font-weight: 900; letter-spacing: -1px; color: #111; font-family: 'Georgia', 'Times New Roman', serif; line-height: 1;">식품 뉴스 클리핑</h1>
+                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #666; font-family: 'Georgia', serif; font-style: italic;">Weekly Food Industry News Curation — The Most Important Stories</p>
+                                </div>
 
-                    <!-- Issue strip -->
-                    <div style="border-top: 2px solid #111; border-bottom: 2px solid #111; padding: 6px 0; display: flex; justify-content: space-between; margin-bottom: 0;">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                            <tr>
-                                <td style="font-size: 11px; font-weight: 700; color: #333; letter-spacing: 0.5px;">VOL. {datetime.now().year} &nbsp;|&nbsp; ISSUE {issue_no}</td>
-                                <td style="font-size: 11px; color: #333; text-align: center; font-weight: 700;">선별 기사 {total_articles}건</td>
-                                <td style="font-size: 11px; font-weight: 700; color: #333; text-align: right;">{today_formatted}</td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
+                                <!-- Issue strip -->
+                                <div style="border-top: 2px solid #111; border-bottom: 2px solid #111; padding: 6px 0; display: flex; justify-content: space-between; margin-bottom: 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                            <td style="font-size: 11px; font-weight: 700; color: #333; letter-spacing: 0.5px;">VOL. {datetime.now().year} &nbsp;|&nbsp; ISSUE {issue_no}</td>
+                                            <td style="font-size: 11px; color: #333; text-align: center; font-weight: 700;">선별 기사 {total_articles}건</td>
+                                            <td style="font-size: 11px; font-weight: 700; color: #333; text-align: right;">{today_formatted}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
 
-                <!-- BODY -->
-                <div style="padding: 0 32px 32px 32px; background-color: #FFFFFF;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                        {news_items_html}
-                    </table>
-                </div>
+                            <!-- BODY -->
+                            <div style="padding: 0 32px 32px 32px; background-color: #FFFFFF;">
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                    {news_items_html}
+                                </table>
+                            </div>
 
-                <!-- FOOTER -->
-                <div style="border-top: 3px double #111; margin: 0 32px; padding: 14px 0 24px 0; text-align: center;">
-                    <p style="margin: 0 0 3px 0; font-size: 10px; color: #999; letter-spacing: 0.5px;">Automatically curated by the AI Strategic Management System · Powered by Google Gemini</p>
-                    <p style="margin: 0; font-size: 10px; color: #999;">&copy; {datetime.now().year} Jinju Ham Co., Ltd. Marketing &amp; Sales Division &nbsp;·&nbsp; Strictly Confidential</p>
-                </div>
+                            <!-- FOOTER -->
+                            <div style="border-top: 3px double #111; margin: 0 32px; padding: 14px 0 24px 0; text-align: center;">
+                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #999; letter-spacing: 0.5px;">Automatically curated by the AI Strategic Management System · Powered by Google Gemini</p>
+                                <p style="margin: 0; font-size: 10px; color: #999;">&copy; {datetime.now().year} Jinju Ham Co., Ltd. Marketing &amp; Sales Division &nbsp;·&nbsp; Strictly Confidential</p>
+                            </div>
 
-            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
             </body>
             </html>
             """
