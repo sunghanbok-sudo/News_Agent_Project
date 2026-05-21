@@ -617,14 +617,14 @@ class NewsMessenger:
                     cat = '미분류'
                 categorized_news[cat].append(news)
 
-            # 카테고리별 색상 맵
+            # 카테고리별 색상 맵 (고급스러우면서도 초여름에 걸맞은 산뜻한 HSL 톤 적용)
             CATEGORY_COLORS = {
-                "국제 이슈": "#1A3A6B",
-                "유통/시장 시황": "#1A5C2E",
-                "물가 및 원재료": "#8B1A1A",
-                "트렌드 및 신기술/신제품": "#4A1A6B",
-                "국내 식품 핫뉴스": "#7A3A00",
-                "미분류": "#3A3A3A",
+                "국제 이슈": "#1E3D59",           # 세련된 클래식 마린 네이비
+                "유통/시장 시황": "#17B890",       # 청량한 초여름 세이지 민트 그린
+                "물가 및 원재료": "#E05A47",       # 화사한 소프트 코랄 레드
+                "트렌드 및 신기술/신제품": "#8E44AD", # 트렌디한 라벤더 바이올렛
+                "국내 식품 핫뉴스": "#F39C12",     # 생기 있는 써머 오렌지
+                "미분류": "#7F8C8D",               # 차분한 슬레이트 그레이
             }
             CATEGORY_ICONS = {
                 "국제 이슈": "GLOBAL",
@@ -651,7 +651,7 @@ class NewsMessenger:
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                         <tr>
                             <td style="border-top: 3px solid #111; padding-top: 4px; vertical-align: top; width: 5px; padding-right: 10px;">
-                                <div style="background-color: {color}; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 1px; padding: 2px 6px; white-space: nowrap; display: inline-block;">{label}</div>
+                                <div style="background-color: {color}; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 1px; padding: 2px 6px; white-space: nowrap; display: inline-block; border-radius: 2px;">{label}</div>
                             </td>
                             <td style="border-top: 1px solid #CCC; padding-top: 4px; vertical-align: top;">
                                 <span style="color: {color}; font-size: 13px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">{category}</span>
@@ -712,15 +712,53 @@ class NewsMessenger:
             today_formatted = datetime.now().strftime('%Y년 %m월 %d일')
             issue_no = datetime.now().isocalendar()[1]  # 주차
 
+            # 헤더 이미지 로드 및 CID 구성
+            from email.mime.image import MIMEImage
+            header_image_cid = "jinju_header"
+            has_header_img = False
+            
+            # 다중 경로 후보지 탐색하여 진주햄 헤더 파일 검색
+            header_img_paths = [
+                os.path.join(BASE_DIR, "jinju_header.png"),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "jinju_header.png"),
+                os.path.join(BASE_DIR, "data", "jinju_header.png")
+            ]
+            
+            header_img_path = ""
+            for p in header_img_paths:
+                if os.path.exists(p):
+                    header_img_path = p
+                    has_header_img = True
+                    break
+            
+            if has_header_img:
+                brand_banner_html = f"""
+                <!-- JINJU HAM MIGRATED EXCELLENT HEADER BANNER -->
+                <div style="margin-top: 24px; margin-bottom: 8px; text-align: center; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.12); line-height: 0;">
+                    <img src="cid:{header_image_cid}" alt="Jinju Ham Family" style="width: 100%; max-height: 140px; object-fit: cover;" />
+                </div>
+                """
+            else:
+                brand_banner_html = """
+                <!-- NO HEADER IMAGE DETECTED: OFFICIAL BRAND LOGO FALLBACK -->
+                <div style="margin-top: 24px; margin-bottom: 12px; text-align: center; background-color: #FFFFFF; padding: 10px; border-radius: 8px;">
+                    <img src="https://lh3.googleusercontent.com/cAAK-T4xQJf-YdM7uJEsuYSdQsd9WzHXyWhQA93ayqdZqmC3ipH5xWcmq3UBG5UJaIhpHJ0QFYXfGFlOAMoiEOL4MBPl3O-AwhIs26sn1qQ3Nfo2Ux5hSw=s0" alt="Jinju Ham Official Logo" style="height: 38px; object-fit: contain; display: inline-block;" />
+                </div>
+                <div style="height: 2px; background-color: #E8F0EC; margin-bottom: 8px;"></div>
+                """
+
             html_content = f"""
             <html>
-            <body style="margin: 0; padding: 0; background-color: #F0EDE8; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
-            <div style="max-width: 700px; margin: 20px auto; background-color: #FAFAF7;">
+            <body style="margin: 0; padding: 0; background-color: #E8F0EC; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
+            <div style="max-width: 700px; margin: 20px auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(23, 184, 144, 0.07); border: 1px solid #DFECE6;">
 
                 <!-- MASTHEAD -->
                 <div style="padding: 0 32px;">
+                    
+                    {brand_banner_html}
+
                     <!-- Top rule -->
-                    <div style="border-top: 5px solid #111; border-bottom: 1px solid #111; padding: 5px 0; margin-top: 24px; text-align: center;">
+                    <div style="border-top: 2px solid #111; border-bottom: 1px solid #111; padding: 5px 0; margin-top: 15px; text-align: center;">
                         <span style="font-size: 10px; font-weight: 700; letter-spacing: 3px; color: #555; text-transform: uppercase;">JINJU HAM &nbsp;·&nbsp; FOOD INDUSTRY INTELLIGENCE &nbsp;·&nbsp; INTERNAL USE ONLY</span>
                     </div>
 
@@ -743,7 +781,7 @@ class NewsMessenger:
                 </div>
 
                 <!-- BODY -->
-                <div style="padding: 0 32px 32px 32px; background-color: #FAFAF7;">
+                <div style="padding: 0 32px 32px 32px; background-color: #FFFFFF;">
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                         {news_items_html}
                     </table>
@@ -760,7 +798,8 @@ class NewsMessenger:
             </html>
             """
 
-
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
 
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
@@ -768,11 +807,27 @@ class NewsMessenger:
                 
                 for recipient in self.recipients:
                     try:
-                        msg = MIMEMultipart()
+                        # 인라인 이미지가 정상 렌더링되도록 related 구조로 생성
+                        msg = MIMEMultipart('related')
                         msg['From'] = self.email_user
                         msg['To'] = recipient
                         msg['Subject'] = f"[Strategic Insight] 식품업계 비즈니스 브리핑 ({datetime.now().strftime('%m/%d')})"
-                        msg.attach(MIMEText(html_content, 'html'))
+                        
+                        # 대체 본문 컨테이너 추가
+                        msg_alternative = MIMEMultipart('alternative')
+                        msg.attach(msg_alternative)
+                        msg_alternative.attach(MIMEText(html_content, 'html'))
+                        
+                        # CID 이미지 첨부 (헤더 이미지 파일이 있을 경우)
+                        if has_header_img:
+                            try:
+                                with open(header_img_path, 'rb') as img_f:
+                                    mime_img = MIMEImage(img_f.read())
+                                    mime_img.add_header('Content-ID', f'<{header_image_cid}>')
+                                    mime_img.add_header('Content-Disposition', 'inline', filename='jinju_header.png')
+                                    msg.attach(mime_img)
+                            except Exception as img_err:
+                                print(f"⚠️ [메신저] 헤더 이미지 CID 첨부 에러: {img_err}")
                         
                         server.send_message(msg)
                         print(f"✅ [메신저] 이메일 발송 완료: {recipient}")
