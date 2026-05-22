@@ -732,73 +732,112 @@ class NewsMessenger:
                     break
             
             if has_header_img:
+                # 아웃룩에서는 height: auto가 먹히지 않고 이미지가 세로로 늘어날 수 있으므로 명시적인 width를 부여
                 brand_banner_html = f"""
-                <!-- JINJU HAM MIGRATED EXCELLENT HEADER BANNER -->
-                <div style="margin-top: 24px; margin-bottom: 8px; text-align: center; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.12); line-height: 0;">
-                    <img src="cid:{header_image_cid}" alt="Jinju Ham Family" style="width: 100%; height: auto; display: block; border: 0;" />
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; margin-bottom: 8px;">
+                    <tr>
+                        <td align="center">
+                            <img src="cid:{header_image_cid}" alt="Jinju Ham Family" width="636" style="width: 100%; max-width: 636px; height: auto; display: block; border: 0; border-radius: 8px;" />
+                        </td>
+                    </tr>
+                </table>
                 """
             else:
                 brand_banner_html = """
-                <!-- NO HEADER IMAGE DETECTED: OFFICIAL BRAND LOGO FALLBACK -->
-                <div style="margin-top: 24px; margin-bottom: 12px; text-align: center; background-color: #FFFFFF; padding: 10px; border-radius: 8px;">
-                    <img src="https://lh3.googleusercontent.com/cAAK-T4xQJf-YdM7uJEsuYSdQsd9WzHXyWhQA93ayqdZqmC3ipH5xWcmq3UBG5UJaIhpHJ0QFYXfGFlOAMoiEOL4MBPl3O-AwhIs26sn1qQ3Nfo2Ux5hSw=s0" alt="Jinju Ham Official Logo" style="height: 38px; object-fit: contain; display: inline-block;" />
-                </div>
-                <div style="height: 2px; background-color: #E8F0EC; margin-bottom: 8px;"></div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; margin-bottom: 12px; background-color: #FFFFFF; border-radius: 8px;">
+                    <tr>
+                        <td align="center" style="padding: 10px;">
+                            <img src="https://lh3.googleusercontent.com/cAAK-T4xQJf-YdM7uJEsuYSdQsd9WzHXyWhQA93ayqdZqmC3ipH5xWcmq3UBG5UJaIhpHJ0QFYXfGFlOAMoiEOL4MBPl3O-AwhIs26sn1qQ3Nfo2Ux5hSw=s0" alt="Jinju Ham Official Logo" height="38" style="height: 38px; display: block; border: 0;" />
+                        </td>
+                    </tr>
+                </table>
                 """
 
             html_content = f"""
-            <html>
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>식품 뉴스 클리핑</title>
+                <!--[if mso]>
+                <style type="text/css">
+                    table {{border-collapse: collapse;}}
+                    td, th {{font-family: Arial, sans-serif;}}
+                </style>
+                <![endif]-->
+            </head>
             <body style="margin: 0; padding: 0; background-color: #E8F0EC; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #E8F0EC; width: 100% !important; margin: 0; padding: 30px 0; font-family: 'Helvetica Neue', 'Malgun Gothic', Arial, sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#E8F0EC" style="width: 100%; margin: 0; padding: 30px 0; background-color: #E8F0EC;">
                 <tr>
-                    <td align="center" style="background-color: #E8F0EC; padding: 10px 0;">
-                        
-                        <!-- MAIN CARD CONTAINER -->
-                        <div style="max-width: 700px; width: 100%; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(23, 184, 144, 0.07); border: 1px solid #DFECE6; text-align: left;">
-
-                            <!-- MASTHEAD -->
-                            <div style="padding: 0 32px;">
-                                
-                                {brand_banner_html}
-
-                                <!-- Top rule -->
-                                <div style="border-top: 2px solid #111; border-bottom: 1px solid #111; padding: 5px 0; margin-top: 15px; text-align: center;">
-                                    <span style="font-size: 10px; font-weight: 700; letter-spacing: 3px; color: #555; text-transform: uppercase;">JINJU HAM &nbsp;·&nbsp; FOOD INDUSTRY INTELLIGENCE &nbsp;·&nbsp; INTERNAL USE ONLY</span>
-                                </div>
-
-                                <!-- Title -->
-                                <div style="text-align: center; padding: 14px 0 8px 0;">
-                                    <h1 style="margin: 0; font-size: 42px; font-weight: 900; letter-spacing: -1px; color: #111; font-family: 'Georgia', 'Times New Roman', serif; line-height: 1;">식품 뉴스 클리핑</h1>
-                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #666; font-family: 'Georgia', serif; font-style: italic;">Weekly Food Industry News Curation — The Most Important Stories</p>
-                                </div>
-
-                                <!-- Issue strip -->
-                                <div style="border-top: 2px solid #111; border-bottom: 2px solid #111; padding: 6px 0; display: flex; justify-content: space-between; margin-bottom: 0;">
-                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <td align="center" style="padding: 20px 0;">
+                        <!--[if (gte mso 9)|(IE)]>
+                        <table width="700" align="center" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td align="center">
+                        <![endif]-->
+                        <table class="main-container" width="100%" max-width="700" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="max-width: 700px; width: 100%; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #DFECE6;">
+                            <tr>
+                                <td style="padding: 0 32px;">
+                                    {brand_banner_html}
+                                    
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 15px; border-top: 2px solid #111; border-bottom: 1px solid #111;">
                                         <tr>
-                                            <td style="font-size: 11px; font-weight: 700; color: #333; letter-spacing: 0.5px;">VOL. {datetime.now().year} &nbsp;|&nbsp; ISSUE {issue_no}</td>
-                                            <td style="font-size: 11px; color: #333; text-align: center; font-weight: 700;">선별 기사 {total_articles}건</td>
-                                            <td style="font-size: 11px; font-weight: 700; color: #333; text-align: right;">{today_formatted}</td>
+                                            <td align="center" style="padding: 5px 0; font-size: 10px; font-weight: 700; letter-spacing: 3px; color: #555;">
+                                                JINJU HAM &nbsp;&middot;&nbsp; FOOD INDUSTRY INTELLIGENCE &nbsp;&middot;&nbsp; INTERNAL USE ONLY
+                                            </td>
                                         </tr>
                                     </table>
-                                </div>
-                            </div>
 
-                            <!-- BODY -->
-                            <div style="padding: 0 32px 32px 32px; background-color: #FFFFFF;">
-                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                                    {news_items_html}
-                                </table>
-                            </div>
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 14px 0 8px 0;">
+                                        <tr>
+                                            <td align="center">
+                                                <h1 style="margin: 0; font-size: 38px; font-weight: 900; letter-spacing: -1px; color: #111; font-family: 'Georgia', 'Times New Roman', serif; line-height: 1;">식품 뉴스 클리핑</h1>
+                                                <p style="margin: 4px 0 0 0; font-size: 12px; color: #666; font-family: 'Georgia', serif; font-style: italic;">Weekly Food Industry News Curation — The Most Important Stories</p>
+                                            </td>
+                                        </tr>
+                                    </table>
 
-                            <!-- FOOTER -->
-                            <div style="border-top: 3px double #111; margin: 0 32px; padding: 14px 0 24px 0; text-align: center;">
-                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #999; letter-spacing: 0.5px;">Automatically curated by the AI Strategic Management System · Powered by Google Gemini</p>
-                                <p style="margin: 0; font-size: 10px; color: #999;">&copy; {datetime.now().year} Jinju Ham Co., Ltd. Marketing &amp; Sales Division &nbsp;·&nbsp; Strictly Confidential</p>
-                            </div>
-
-                        </div>
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 2px solid #111; border-bottom: 2px solid #111; margin-bottom: 20px;">
+                                        <tr>
+                                            <td align="left" style="padding: 6px 0; font-size: 11px; font-weight: 700; color: #333; letter-spacing: 0.5px; width: 33%;">
+                                                VOL. {datetime.now().year} &nbsp;|&nbsp; ISSUE {issue_no}
+                                            </td>
+                                            <td align="center" style="padding: 6px 0; font-size: 11px; color: #333; font-weight: 700; width: 34%;">
+                                                선별 기사 {total_articles}건
+                                            </td>
+                                            <td align="right" style="padding: 6px 0; font-size: 11px; font-weight: 700; color: #333; width: 33%;">
+                                                {today_formatted}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0 32px 32px 32px;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        {news_items_html}
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0 32px 24px 32px;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 3px double #111;">
+                                        <tr>
+                                            <td align="center" style="padding-top: 14px;">
+                                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #999; letter-spacing: 0.5px;">Automatically curated by the AI Strategic Management System &middot; Powered by Google Gemini</p>
+                                                <p style="margin: 0; font-size: 10px; color: #999;">&copy; {datetime.now().year} Jinju Ham Co., Ltd. Marketing &amp; Sales Division &nbsp;&middot;&nbsp; Strictly Confidential</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                        <!--[if (gte mso 9)|(IE)]>
+                                </td>
+                            </tr>
+                        </table>
+                        <![endif]-->
                     </td>
                 </tr>
             </table>
