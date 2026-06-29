@@ -1,0 +1,35 @@
+name: Weekly News Agent V3 (Design Preview)
+
+on:
+  schedule:
+    # v2와 동일: 매주 금요일 한국 시간 오전 6시 (UTC 목요일 21:00)
+    - cron: '0 21 * * 4'
+  workflow_dispatch:
+
+jobs:
+  run-news-agent-v3:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        cd v3
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run News Agent V3
+      env:
+        GMAIL_USER: ${{ secrets.GMAIL_USER }}
+        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        cd v3
+        python main.py
