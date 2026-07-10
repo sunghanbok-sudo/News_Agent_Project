@@ -16,6 +16,22 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data", "raw_news")
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs", "reports")
 
+CATEGORY_ORDER = [
+    "국제 이슈",
+    "유통/시장 시황",
+    "물가 및 원재료",
+    "트렌드 및 신기술/신제품",
+    "국내 식품 핫뉴스",
+]
+
+CATEGORY_TARGETS = {
+    "국제 이슈": 2,
+    "유통/시장 시황": 6,
+    "물가 및 원재료": 2,
+    "트렌드 및 신기술/신제품": 3,
+    "국내 식품 핫뉴스": 2,
+}
+
 # .env 파일 로드 (환경변수 설정)
 env_path = os.path.join(BASE_DIR, ".env")
 load_dotenv(dotenv_path=env_path)
@@ -328,24 +344,231 @@ class NewsStrategist:
             "competitor_keywords": ["CJ제일제당", "롯데웰푸드", "하림"]
         }
 
+    FOOD_RELEVANCE_KEYWORDS = [
+        "식품", "식음료", "외식", "먹거리", "푸드", "k-푸드", "가공식품", "식자재",
+        "진주햄", "천하장사", "식재료", "원재료", "농산물", "축산", "수입육", "육가공", "어육", "소시지",
+        "소세지", "햄", "비엔나", "후랑크", "베이컨", "HMR", "간편식", "밀키트",
+        "RMR", "냉동", "냉장", "라면", "김치", "스낵", "간식", "음료", "주류", "전통주", "맥주", "소주",
+        "안주", "홈술", "제로슈거", "제로칼로리", "비건", "대체육", "단백질",
+        "푸드테크", "헬시플레저", "할랄", "식중독", "이물질", "리콜", "위생",
+        "식약처", "농식품부", "건강기능식품"
+    ]
+
+    BROAD_CONTEXT_KEYWORDS = {
+        "마케팅", "캠페인", "콜라보", "팝업", "신제품", "매출", "ESG", "M&A",
+        "숏폼", "유튜브", "가성비", "MZ", "잘파", "1인가구", "시니어", "오피스",
+        "편의점", "할인점", "대형마트", "이커머스"
+    }
+
+    OFF_TOPIC_KEYWORDS = [
+        "드라마", "영화", "예능", "배우", "가수", "아이돌", "팬미팅", "웹툰",
+        "애니", "게임", "축구", "야구", "부동산", "아파트", "코인", "화장품",
+        "패션", "여행", "항공", "호텔", "리조트", "관광", "자동차", "반도체",
+        "스마트폰", "정치", "선거"
+    ]
+
+    CATEGORY_RULES = {
+        "국제 이슈": ["해외", "글로벌", "수출", "동남아", "미국", "중국", "일본", "유럽", "할랄", "k-푸드", "진출", "국제"],
+        "유통/시장 시황": ["유통", "편의점", "마트", "대형마트", "할인점", "이커머스", "온라인", "커머스", "PB", "B2B", "채널", "시장", "슈퍼"],
+        "물가 및 원재료": ["물가", "원재료", "원자재", "가격", "단가", "인상", "인플레이션", "환율", "수급", "수입육", "애그플레이션"],
+        "트렌드 및 신기술/신제품": ["트렌드", "푸드테크", "신기술", "신제품", "헬시플레저", "제로", "비건", "대체육", "단백질", "밀키트", "RMR"],
+        "국내 식품 핫뉴스": ["식품업계", "외식업계", "정책", "실적", "팝업", "콜라보", "리뉴얼", "출시", "협업", "식약처", "농식품부"],
+    }
+
+    def _article_text(self, news, include_query=False):
+        parts = [
+            str(news.get("title", "")),
+            str(news.get("desc", "")),
+        ]
+        if include_query:
+            parts.append(str(news.get("query", "")))
+        return " ".join(parts).lower()
+
+    def _keyword_hits(self, keywords, text):
+        hits = []
+        for keyword in keywords:
+            keyword_text = str(keyword or "").strip()
+            if keyword_text and keyword_text.lower() in text:
+                hits.append(keyword_text)
+        return hits
+
+    def _food_context_keywords(self):
+        configured_keywords = (
+            self.biz_keywords
+            + self.trend_keywords
+            + self.risk_keywords
+            + self.competitor_keywords
+        )
+        return [
+            keyword for keyword in configured_keywords
+            if keyword and keyword not in self.BROAD_CONTEXT_KEYWORDS
+        ]
+
+    def _is_food_relevant(self, news):
+        text = self._article_text(news)
+        if not text.strip():
+            return False
+
+        direct_hits = self._keyword_hits(self.FOOD_RELEVANCE_KEYWORDS, text)
+        configured_hits = self._keyword_hits(self._food_context_keywords(), text)
+        off_topic_hits = self._keyword_hits(self.OFF_TOPIC_KEYWORDS, text)
+
+        if off_topic_hits and not direct_hits and not configured_hits:
+            return False
+
+        return bool(direct_hits or configured_hits)
+
+    def _classify_rule_based(self, news):
+        text = self._article_text(news, include_query=True)
+
+        # 원재료/물가 이슈는 보고 우선도가 높으므로 먼저 잡습니다.
+        priority_order = [
+            "물가 및 원재료",
+            "국제 이슈",
+            "유통/시장 시황",
+            "트렌드 및 신기술/신제품",
+            "국내 식품 핫뉴스",
+        ]
+
+        best_category = "국내 식품 핫뉴스"
+        best_hits = []
+        for category in priority_order:
+            hits = self._keyword_hits(self.CATEGORY_RULES[category], text)
+            if hits:
+                best_category = category
+                best_hits = hits
+                break
+
+        if not best_hits:
+            best_hits = self._keyword_hits(self.FOOD_RELEVANCE_KEYWORDS, text)
+
+        return best_category, best_hits[:3]
+
+    def _is_lightweight_promo(self, news):
+        text = self._article_text(news)
+        promo_hits = self._keyword_hits(
+            ["출시", "선보여", "할인", "이벤트", "기획전", "팝업", "콜라보", "판매"],
+            text,
+        )
+        strategic_hits = self._keyword_hits(
+            ["시장", "성장", "확산", "수출", "규제", "물가", "원재료", "업계", "전략", "실적", "인상"],
+            text,
+        )
+        return bool(promo_hits and not strategic_hits)
+
+    def _score_rule_based(self, news, category):
+        text = self._article_text(news, include_query=True)
+        score = 50
+
+        if self._keyword_hits(self.competitor_keywords + ["진주햄", "천하장사"], text):
+            score += 18
+        if category == "물가 및 원재료":
+            score += 14
+        if category == "유통/시장 시황":
+            score += 10
+        if category == "국제 이슈":
+            score += 9
+        if category == "트렌드 및 신기술/신제품":
+            score += 8
+        if self._keyword_hits(["육가공", "소시지", "햄", "HMR", "간편식", "수입육", "단백질"], text):
+            score += 10
+        if self._is_lightweight_promo(news):
+            score -= 12
+
+        return max(1, min(score, 100))
+
+    def _fallback_insight(self, category):
+        insights = {
+            "국제 이슈": "국내 식품 제조사의 수출, 원가, 브랜드 포지셔닝에 영향을 줄 수 있는 글로벌 흐름입니다.",
+            "유통/시장 시황": "채널별 수요 변화와 판매 전략을 점검할 때 참고할 만한 시장 신호입니다.",
+            "물가 및 원재료": "원가와 판가, 프로모션 강도에 직접 영향을 줄 수 있어 추적이 필요합니다.",
+            "트렌드 및 신기술/신제품": "제품 기획과 커뮤니케이션 소재를 점검할 때 참고할 수 있는 소비 트렌드입니다.",
+            "국내 식품 핫뉴스": "국내 식품업계의 경쟁 구도와 마케팅 방향을 읽는 데 필요한 기사입니다.",
+        }
+        return insights.get(category, insights["국내 식품 핫뉴스"])
+
+    def _curate_rule_based(self, news_list, fallback_reason):
+        print(f"🧭 [전략 분석가] {fallback_reason}: 룰 기반 식품 관련성 필터와 카테고리 분류를 적용합니다.")
+        enriched_news = []
+        seen_keys = set()
+
+        for news in news_list:
+            if not self._is_food_relevant(news):
+                print(f"🚫 [전략 분석가] 식품 관련성 부족으로 제외: {news.get('title', '')}")
+                continue
+
+            category, reason_hits = self._classify_rule_based(news)
+            curated = dict(news)
+            curated["category"] = category
+            curated["score"] = self._score_rule_based(curated, category)
+            curated["reasons"] = ", ".join(reason_hits) if reason_hits else "식품 관련 키워드"
+            curated["insight"] = self._fallback_insight(category)
+            curated["is_critical"] = bool(
+                self._keyword_hits(["식중독", "이물질", "리콜", "회수", "급등", "파동"], self._article_text(curated))
+            )
+
+            dedupe_key = curated.get("link") or re.sub(r"\W+", "", curated.get("title", "").lower())
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+            enriched_news.append(curated)
+
+        by_category = {category: [] for category in CATEGORY_ORDER}
+        for news in enriched_news:
+            by_category.setdefault(news["category"], []).append(news)
+        for items in by_category.values():
+            items.sort(key=lambda item: item.get("score", 0), reverse=True)
+
+        selected = []
+        selected_keys = set()
+        for category in CATEGORY_ORDER:
+            target = CATEGORY_TARGETS.get(category, 0)
+            for news in by_category.get(category, [])[:target]:
+                key = news.get("link") or news.get("title")
+                selected.append(news)
+                selected_keys.add(key)
+
+        remaining = sorted(enriched_news, key=lambda item: item.get("score", 0), reverse=True)
+        for news in remaining:
+            if len(selected) >= 15:
+                break
+            key = news.get("link") or news.get("title")
+            if key in selected_keys:
+                continue
+            selected.append(news)
+            selected_keys.add(key)
+
+        if len(selected) < 15:
+            print(f"ℹ️ [전략 분석가] 식품 관련 기사만 선별하여 {len(selected)}건을 반환합니다. 품질 유지를 위해 15건을 억지로 채우지 않습니다.")
+
+        return selected[:15]
+
     def analyze(self, news_list):
         print("📊 [전략 분석가] 뉴스 분석 및 Top 15 선정 중 (Gemini 카테고리별 할당)...")
         
-        if not self.api_key or not news_list:
-            print("⚠️ [전략 분석가] API 키가 없거나 뉴스 목록이 비어 기존 Rule-based 로직(또는 빈 리스트)으로 폴백합니다.")
-            fallback_list = news_list[:15]
-            for news in fallback_list:
-                news['score'] = 50
-                news['reasons'] = "Gemini 연결 실패(Fallback)"
-                news['insight'] = "현재 분석 엔진에 접근할 수 없어 단순 상위 15개 기사를 추출했습니다."
-                news['is_critical'] = False
-                news['category'] = "미분류"
-            return fallback_list
+        if not news_list:
+            print("⚠️ [전략 분석가] 수집된 뉴스가 없어 빈 리스트를 반환합니다.")
+            return []
+
+        candidate_news_list = []
+        for news in news_list:
+            if self._is_food_relevant(news):
+                candidate_news_list.append(news)
+            else:
+                print(f"🚫 [전략 분석가] LLM 분석 전 식품 관련성 부족으로 제외: {news.get('title', '')}")
+
+        if not candidate_news_list:
+            print("⚠️ [전략 분석가] 식품 관련 후보가 없어 빈 리스트를 반환합니다.")
+            return []
+
+        if not self.api_key:
+            print("⚠️ [전략 분석가] GEMINI_API_KEY가 없어 룰 기반 선별로 대체합니다.")
+            return self._curate_rule_based(candidate_news_list, "Gemini 연결 실패")
             
         # LLM에게 전달할 뉴스 데이터 축약 (전체 텍스트 대신 제목/설명만 제공하여 토큰 절약)
         # 최적화 적용(보보팀장): LLM 전송 기사 수 최대 60개 제한, desc 100자 절사, 불필요한 source 제거 (Gemini 3 기반)
         prompt_news_data = []
-        optimized_news_list = news_list[:60]
+        optimized_news_list = candidate_news_list[:60]
         for idx, news in enumerate(optimized_news_list):
             desc_text = news.get('desc', '')
             if len(desc_text) > 100:
@@ -360,12 +583,13 @@ class NewsStrategist:
 당신은 대한민국 최고의 식품/유통 산업 전문 '마케팅 전략 분석가'입니다. 
 주 타겟 독자는 50대 식품 제조사(특히 육가공/HMR 주력) 마케팅 팀장입니다.
 
-다음은 오늘 수집된 뉴스 기사 목록({len(news_list)}건)입니다.
-이 중에서 마케팅 팀장님께서 반드시 알아야 할 **가장 중요하고 인사이트가 넘치는 기사를 총 15개** 엄선해 주세요.
+다음은 오늘 수집 후 1차 관련성 검증을 통과한 뉴스 기사 목록({len(candidate_news_list)}건)입니다.
+이 중에서 마케팅 팀장님께서 반드시 알아야 할 **가장 중요하고 인사이트가 넘치는 기사를 최대 15개** 엄선해 주세요.
+식품 제조, 식품 유통, 외식, 원재료, 식품 소비 트렌드와 직접 관련성이 낮은 기사는 제외하고, 관련 기사가 부족하면 15개 미만으로 반환해도 됩니다. 절대 비식품 뉴스를 개수 채우기용으로 포함하지 마세요.
 
-## 필수 선정 카테고리 및 목표 할당량 (총 15개)
+## 필수 선정 카테고리 및 목표 배분 (최대 15개)
 다음 5개 카테고리별 목표 개수에 맞게 기사를 배분하여 선정하세요.
-단, 특정 카테고리에 해당하는 기사가 부족할 경우, 부족한 개수만큼 기사가 풍부한 다른 카테고리(예: 트렌드, 핫뉴스)에서 기사를 추가로 선정하여 **반드시 총 15개를 채워야 합니다**.
+단, 특정 카테고리에 해당하는 기사가 부족할 경우, 관련성이 높은 다른 카테고리에서만 보강하고 비식품 기사로 개수를 채우지 마세요.
 
 1. **국제 이슈 (목표 2개)**: 국내 식품업계에 영향을 미치는 글로벌 K-푸드 수출, 해외 진출 동향, 국제 규제 등
 2. **유통/시장 시황 (목표 6개)**: 할인점, 편의점, 개인 슈퍼, 온라인 커머스, B2B 시장 등 유통 채널 및 시장 상황 동향
@@ -390,7 +614,7 @@ class NewsStrategist:
       "insight": "편의점 채널에 맞춘 소용량/프리미엄 HMR 제품군 개발 및 벤치마킹 필요",
       "is_critical": false
     }},
-    ... (총 15개)
+    ... (최대 15개)
   ]
 }}
 ```
@@ -438,14 +662,7 @@ class NewsStrategist:
                             break
             except Exception as parse_e:
                 print(f"⚠️ JSON 파싱 에러: {parse_e}\nContent: {content}")
-                fallback_list = news_list[:15]
-                for news in fallback_list:
-                    news['score'] = 50
-                    news['reasons'] = "파싱 실패 폴백"
-                    news['insight'] = "결과 파싱 오류로 인한 자동 추출"
-                    news['is_critical'] = False
-                    news['category'] = "미분류"
-                return fallback_list
+                return self._curate_rule_based(candidate_news_list, "Gemini 응답 파싱 실패")
 
             top_results = result_json[:15]
             
@@ -459,42 +676,49 @@ class NewsStrategist:
                     print(f"⚠️ [전략 분석가] original_id 변환 실패: {orig_id}")
                     continue
                     
-                if orig_id is not None and 0 <= orig_id < len(news_list):
-                    news = news_list[orig_id]
+                if orig_id is not None and 0 <= orig_id < len(candidate_news_list):
+                    news = dict(candidate_news_list[orig_id])
+                    if not self._is_food_relevant(news):
+                        print(f"🚫 [전략 분석가] LLM 선정 후 검증에서 식품 관련성 부족으로 제외: {news.get('title', '')}")
+                        continue
+
+                    fallback_category, fallback_hits = self._classify_rule_based(news)
+                    category = str(item.get("category", "")).strip()
+                    if category not in CATEGORY_ORDER:
+                        category = fallback_category
+
                     news['score'] = item.get("score", 0)
-                    news['reasons'] = item.get("reasons", "")
-                    news['insight'] = item.get("insight", "")
+                    news['reasons'] = item.get("reasons", "") or ", ".join(fallback_hits) or "식품 관련 키워드"
+                    news['insight'] = item.get("insight", "") or self._fallback_insight(category)
                     news['is_critical'] = item.get("is_critical", False)
-                    news['category'] = item.get("category", "미분류")
+                    news['category'] = category
                     final_news_list.append(news)
                 else:
-                    print(f"⚠️ [전략 분석가] original_id 범위 초과: {orig_id} (총 {len(news_list)}건)")
+                    print(f"⚠️ [전략 분석가] original_id 범위 초과: {orig_id} (총 {len(candidate_news_list)}건)")
             
             # 매핑 결과가 너무 적으면 (예: LLM이 이상한 응답) 폴백
             if len(final_news_list) < 5:
                 print(f"⚠️ [전략 분석가] 매핑 결과가 {len(final_news_list)}건으로 너무 적어 폴백합니다.")
-                fallback_list = news_list[:15]
-                for news in fallback_list:
-                    news['score'] = 50
-                    news['reasons'] = "매핑 실패 폴백"
-                    news['insight'] = "LLM 응답 매핑 오류로 인한 자동 추출"
-                    news['is_critical'] = False
-                    news['category'] = "미분류"
-                return fallback_list
+                return self._curate_rule_based(candidate_news_list, "Gemini 매핑 실패")
+
+            if len(final_news_list) < 15:
+                supplemental_news = self._curate_rule_based(candidate_news_list, "Gemini 결과 보강")
+                seen_keys = {news.get("link") or news.get("title") for news in final_news_list}
+                for news in supplemental_news:
+                    if len(final_news_list) >= 15:
+                        break
+                    key = news.get("link") or news.get("title")
+                    if key in seen_keys:
+                        continue
+                    final_news_list.append(news)
+                    seen_keys.add(key)
                     
             print(f"✅ [전략 분석가] Gemini 분석 완료: {len(final_news_list)}건 선정.")
             return final_news_list
 
         except Exception as e:
             print(f"❌ [전략 분석가] Gemini API 호출 실패 (상세에러): {str(e)}")
-            # 폴백: 점수가 없으므로 단순히 앞의 15개만 리턴하고 기본 정보 입력
-            for news in news_list[:15]:
-                news['score'] = 50
-                news['reasons'] = "추출 실패 폴백"
-                news['insight'] = "LLM API 오류로 인한 자동 추출"
-                news['is_critical'] = False
-                news['category'] = "미분류"
-            return news_list[:15]
+            return self._curate_rule_based(candidate_news_list, "Gemini API 호출 실패")
 
 
 
