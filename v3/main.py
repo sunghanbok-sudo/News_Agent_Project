@@ -328,19 +328,110 @@ class NewsStrategist:
             "competitor_keywords": ["CJ제일제당", "롯데웰푸드", "하림"]
         }
 
+    def _text(self, news):
+        return f"{news.get('title', '')} {news.get('desc', '')}".lower()
+
+    def _has_any_keyword(self, text, keywords):
+        return any(str(keyword).lower() in text for keyword in keywords)
+
+    def _is_non_food_noise(self, news):
+        text = self._text(news)
+        hard_noise = [
+            "도깨비", "드라마", "배우", "결방", "예능", "영화", "공연", "연예",
+            "여행", "숙소", "관광", "골프", "부동산", "증시", "주가", "테마주",
+            "맛집", "블로그", "체험단", "방문 후기", "내돈내산",
+        ]
+        if self._has_any_keyword(text, hard_noise):
+            return True
+        experience_only = ["체험형 콘텐츠", "체험 콘텐츠", "콘텐츠로 영토", "재미는 덤"]
+        if self._has_any_keyword(text, experience_only) and not self._has_any_keyword(text, ["식품", "푸드", "HMR", "간편식", "소시지", "햄", "원재료", "원자재"]):
+            return True
+        return False
+
+    def _classify_rule_based(self, news):
+        text = self._text(news)
+        if self._is_non_food_noise(news):
+            return None
+
+        domain_keywords = [
+            "식품", "푸드", "식음료", "소시지", "햄", "간식", "HMR", "간편식",
+            "편의점", "대형마트", "원재료", "원자재", "K-푸드", "푸드테크",
+            "제로", "단백질", "비건", "육가공", "수입육", "돼지고기", "축산", "신제품",
+        ]
+        all_positive = self.biz_keywords + self.trend_keywords + self.risk_keywords + self.target_keywords + self.competitor_keywords + domain_keywords
+        if not self._has_any_keyword(text, all_positive):
+            return None
+
+        score = 0
+        reasons = []
+        category = "국내 식품 핫뉴스"
+        if self._has_any_keyword(text, self.competitor_keywords):
+            score += 24
+            reasons.append("경쟁사")
+            category = "국내 식품 핫뉴스"
+        if self._has_any_keyword(text, self.risk_keywords + ["원가", "가격", "환율", "관세", "수급"]):
+            score += 26
+            reasons.append("원재료/가격 리스크")
+            category = "물가 및 원재료"
+        if self._has_any_keyword(text, ["수출", "해외", "글로벌", "K-푸드", "할랄", "동남아", "중국", "일본", "미국"]):
+            score += 22
+            reasons.append("글로벌/수출")
+            category = "국제 이슈"
+        if self._has_any_keyword(text, self.target_keywords + ["유통", "온라인", "이커머스", "PB", "할인점"]):
+            score += 18
+            reasons.append("유통/시장")
+            if category == "국내 식품 핫뉴스":
+                category = "유통/시장 시황"
+        if self._has_any_keyword(text, self.trend_keywords + ["신기술", "신제품", "헬시", "대체육"]):
+            score += 18
+            reasons.append("트렌드/신제품")
+            if category == "국내 식품 핫뉴스":
+                category = "트렌드 및 신기술/신제품"
+        if self._has_any_keyword(text, self.biz_keywords + domain_keywords):
+            score += 18
+            reasons.append("식품 도메인")
+
+        if score < 40:
+            return None
+        score = min(score + 20, 100)
+        return {
+            "category": category,
+            "score": score,
+            "reasons": ", ".join(dict.fromkeys(reasons)) or "식품 도메인 매칭",
+            "insight": self._fallback_insight(category),
+            "is_critical": category == "물가 및 원재료" and score >= 75,
+        }
+
+    def _fallback_insight(self, category):
+        messages = {
+            "국제 이슈": "K-푸드 수출·현지화 관점에서 제품 포지셔닝과 해외 채널 참고 가치가 있습니다.",
+            "유통/시장 시황": "유통 채널 변화와 소비 접점을 점검해 판촉·입점 전략에 반영할 수 있습니다.",
+            "물가 및 원재료": "원가와 가격 정책에 영향을 줄 수 있어 관련 원재료와 제품군 점검이 필요합니다.",
+            "트렌드 및 신기술/신제품": "제품 콘셉트, 패키징, 커뮤니케이션 소재 후보로 검토할 만합니다.",
+            "국내 식품 핫뉴스": "국내 식품업계 경쟁·브랜드 움직임으로 벤치마킹 가치가 있습니다.",
+        }
+        return messages.get(category, "식품업계 참고 후보입니다.")
+
+    def _safe_rule_based_fallback(self, news_list, reason):
+        safe_items = []
+        for news in news_list:
+            classified = self._classify_rule_based(news)
+            if not classified:
+                print(f"🚫 [전략 분석가] 식품 도메인/품질 게이트 탈락: {news.get('title', '')}")
+                continue
+            news.update(classified)
+            news['reasons'] = f"{classified['reasons']} · {reason}"
+            safe_items.append(news)
+        safe_items.sort(key=lambda item: item.get('score', 0), reverse=True)
+        print(f"✅ [전략 분석가] 안전 폴백 선별 완료: {len(safe_items)}건")
+        return safe_items[:15]
+
     def analyze(self, news_list):
         print("📊 [전략 분석가] 뉴스 분석 및 Top 15 선정 중 (Gemini 카테고리별 할당)...")
         
         if not self.api_key or not news_list:
-            print("⚠️ [전략 분석가] API 키가 없거나 뉴스 목록이 비어 기존 Rule-based 로직(또는 빈 리스트)으로 폴백합니다.")
-            fallback_list = news_list[:15]
-            for news in fallback_list:
-                news['score'] = 50
-                news['reasons'] = "Gemini 연결 실패(Fallback)"
-                news['insight'] = "현재 분석 엔진에 접근할 수 없어 단순 상위 15개 기사를 추출했습니다."
-                news['is_critical'] = False
-                news['category'] = "미분류"
-            return fallback_list
+            print("⚠️ [전략 분석가] API 키가 없거나 뉴스 목록이 비어 Rule-based 안전 폴백으로 전환합니다.")
+            return self._safe_rule_based_fallback(news_list, "Gemini 연결 실패 안전 폴백")
             
         # LLM에게 전달할 뉴스 데이터 축약 (전체 텍스트 대신 제목/설명만 제공하여 토큰 절약)
         # 최적화 적용(보보팀장): LLM 전송 기사 수 최대 60개 제한, desc 100자 절사, 불필요한 source 제거 (Gemini 3 기반)
@@ -438,14 +529,7 @@ class NewsStrategist:
                             break
             except Exception as parse_e:
                 print(f"⚠️ JSON 파싱 에러: {parse_e}\nContent: {content}")
-                fallback_list = news_list[:15]
-                for news in fallback_list:
-                    news['score'] = 50
-                    news['reasons'] = "파싱 실패 폴백"
-                    news['insight'] = "결과 파싱 오류로 인한 자동 추출"
-                    news['is_critical'] = False
-                    news['category'] = "미분류"
-                return fallback_list
+                return self._safe_rule_based_fallback(news_list, "LLM JSON 파싱 실패 안전 폴백")
 
             top_results = result_json[:15]
             
@@ -470,31 +554,37 @@ class NewsStrategist:
                 else:
                     print(f"⚠️ [전략 분석가] original_id 범위 초과: {orig_id} (총 {len(news_list)}건)")
             
+            allowed_categories = {
+                "국제 이슈",
+                "유통/시장 시황",
+                "물가 및 원재료",
+                "트렌드 및 신기술/신제품",
+                "국내 식품 핫뉴스",
+            }
+            gated_news_list = []
+            for news in final_news_list:
+                rule_info = self._classify_rule_based(news)
+                if not rule_info:
+                    print(f"🚫 [전략 분석가] LLM 선정 후 식품 도메인/품질 게이트 탈락: {news.get('title', '')}")
+                    continue
+                if news.get('category') not in allowed_categories:
+                    news['category'] = rule_info['category']
+                if int(news.get('score', 0) or 0) < 45:
+                    news['score'] = rule_info['score']
+                gated_news_list.append(news)
+            final_news_list = sorted(gated_news_list, key=lambda item: item.get('score', 0), reverse=True)[:15]
+
             # 매핑 결과가 너무 적으면 (예: LLM이 이상한 응답) 폴백
             if len(final_news_list) < 5:
-                print(f"⚠️ [전략 분석가] 매핑 결과가 {len(final_news_list)}건으로 너무 적어 폴백합니다.")
-                fallback_list = news_list[:15]
-                for news in fallback_list:
-                    news['score'] = 50
-                    news['reasons'] = "매핑 실패 폴백"
-                    news['insight'] = "LLM 응답 매핑 오류로 인한 자동 추출"
-                    news['is_critical'] = False
-                    news['category'] = "미분류"
-                return fallback_list
+                print(f"⚠️ [전략 분석가] 매핑 결과가 {len(final_news_list)}건으로 너무 적어 안전 폴백합니다.")
+                return self._safe_rule_based_fallback(news_list, "LLM 응답 매핑 실패 안전 폴백")
                     
             print(f"✅ [전략 분석가] Gemini 분석 완료: {len(final_news_list)}건 선정.")
             return final_news_list
 
         except Exception as e:
             print(f"❌ [전략 분석가] Gemini API 호출 실패 (상세에러): {str(e)}")
-            # 폴백: 점수가 없으므로 단순히 앞의 15개만 리턴하고 기본 정보 입력
-            for news in news_list[:15]:
-                news['score'] = 50
-                news['reasons'] = "추출 실패 폴백"
-                news['insight'] = "LLM API 오류로 인한 자동 추출"
-                news['is_critical'] = False
-                news['category'] = "미분류"
-            return news_list[:15]
+            return self._safe_rule_based_fallback(news_list, "LLM API 오류 안전 폴백")
 
 
 
